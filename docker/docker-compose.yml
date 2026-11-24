@@ -1,20 +1,20 @@
 # Part 1 (+ Part 2 nginx): the whole shop on one machine.
 #   cp docker/.env.example docker/.env
 #   docker compose -f docker/docker-compose.yml up -d --build
-#   open http://localhost        (only nginx publishes a port)
+#   open http://localhost        (only nginx publishes a port; set NGINX_PORT in .env to change it)
 name: shop
 
 x-db-url: &db-url "postgresql://postgres:${DB_PASSWORD:?set DB_PASSWORD in docker/.env}@db:5432/shop"
 
 services:
   db:
-    image: postgres:16-alpine
+    build: { context: ../app/db }          # postgres:16-alpine + init.sql baked in
+    image: ${REGISTRY:-local}/ecom-db:${TAG:-dev}
     environment:
       POSTGRES_DB: shop
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ../app/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d shop"]
       interval: 5s
@@ -51,7 +51,20 @@ services:
     depends_on:
       search: { condition: service_healthy }
       payment: { condition: service_healthy }
-    ports: ["8080:8080"]   # Part 1 only; Part 2 puts nginx in front and removes this
+    restart: unless-stopped
+
+  # Part 2: the only service that publishes a port
+  nginx:
+    build: { context: ../nginx }           # nginx-unprivileged + default.conf baked in
+    image: ${REGISTRY:-local}/ecom-nginx:${TAG:-dev}
+    ports: ["${NGINX_PORT:-80}:8080"]
+    depends_on:
+      web: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
 volumes:
