@@ -7,7 +7,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl gnupg jq unzip git openssh-client python3 python3-pip python3-venv \
+      ca-certificates curl gnupg jq unzip git openssh-client python3 python3-pip python3-venv hey \
  && install -m 0755 -d /etc/apt/keyrings \
  && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
  && . /etc/os-release \
@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin docker-buildx-plugin \
  && rm -rf /var/lib/apt/lists/*
 
-# kubectl, kustomize, helm, terraform, aws cli, hey, hadolint
+# kubectl, kustomize, helm, terraform, aws cli, hadolint (hey comes from apt above)
 # hadolint ignore=DL3003
 RUN curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
  && chmod +x /usr/local/bin/kubectl \
@@ -28,9 +28,8 @@ RUN curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -Ls htt
  && unzip -q /tmp/tf.zip -d /usr/local/bin && rm /tmp/tf.zip \
  && curl -fsSLo /tmp/awscli.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip \
  && unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install && rm -rf /tmp/aws /tmp/awscli.zip \
- && curl -fsSLo /usr/local/bin/hey https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64 \
  && curl -fsSLo /usr/local/bin/hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 \
- && chmod +x /usr/local/bin/hey /usr/local/bin/hadolint
+ && chmod +x /usr/local/bin/hadolint
 
 # Ansible in its own virtualenv (+ kubernetes client for kubernetes.core modules)
 ENV PATH="/opt/ansible/bin:${PATH}"

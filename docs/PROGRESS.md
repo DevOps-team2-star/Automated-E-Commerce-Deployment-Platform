@@ -217,3 +217,11 @@ Run it:
 ./scripts/emulator-up.sh           # MiniStack on :4566
 ./terraform/emulator.sh cycle      # Terraform apply -> verify -> destroy against the emulator
 ```
+
+## Fix: tool install on Ubuntu 26.04 (first live run)
+
+- First run of `scripts/install-tools.sh` on Kareem's WSL (Ubuntu 26.04 "resolute") stopped at `hey`: its
+  S3 download failed TLS verification. `hey` now comes from the Ubuntu/Debian package (also in the Jenkins
+  image), and the optional tools (`hey`, `hadolint`) print a warning instead of aborting the script.
+- Installed on that run: jq, pipx, unzip, k3d, helm 3.22.1, kustomize 5.8.3, terraform 1.17.2,
+  ansible 15.0.0 (+ kubernetes lib), aws cli v2. kubectl was already present.
