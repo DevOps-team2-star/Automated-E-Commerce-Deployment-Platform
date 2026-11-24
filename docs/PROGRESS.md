@@ -29,3 +29,17 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
   python lib), aws cli v2, hey and hadolint in WSL2 Ubuntu. `scripts/check-tools.sh` verifies them.
 - Manual steps (Kareem): Docker Desktop with WSL integration for Ubuntu; Docker Hub account + access
   token; AWS IAM user + `aws configure`; AWS Budget alert ($10).
+
+## Part 1 - Docker
+
+- `app/{web,search,payment}/Dockerfile`: multi-stage (`python:3.12-slim`), dependencies installed in a
+  builder stage, runtime runs as UID 10001, `HEALTHCHECK` on `/health`, `APP_VERSION` build arg.
+- Gunicorn runs **1 worker + 8 threads**: `prometheus_client` keeps metrics per process, so several
+  workers would give inconsistent counters. Scaling is done with pods (HPA), not workers.
+- `docker/docker-compose.yml`: db (Postgres 16 + init.sql + named volume + `pg_isready` healthcheck),
+  search, payment, web; `depends_on: condition: service_healthy`; images named
+  `${REGISTRY}/ecom-<svc>:${TAG}`; password from `docker/.env` (git-ignored, see `.env.example`).
+- Run: `cp docker/.env.example docker/.env && docker compose -f docker/docker-compose.yml up -d --build`,
+  open http://localhost:8080.
+- Verify: `docker compose -f docker/docker-compose.yml ps` (all healthy),
+  `docker compose -f docker/docker-compose.yml exec search whoami` -> `appuser`, `docker images | grep ecom`.

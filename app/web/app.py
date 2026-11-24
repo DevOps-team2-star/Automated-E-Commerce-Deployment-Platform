@@ -14,7 +14,7 @@ import requests
 from flask import Flask, g, jsonify, redirect, render_template_string, request, url_for
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
-STORE_TITLE = "DevOps Shop"  # change me to demo a deployment
+STORE_TITLE = "DevOps Team 2 Shop"  # change me to demo a deployment
 VERSION = os.environ.get("APP_VERSION", "dev")
 
 SERVICE = "web"
