@@ -98,8 +98,22 @@ pipeline {
           env.SHOP_URL = env.TARGET == 'aws' ? readFile("${env.JENKINS_HOME}/aws/shop_url").trim() : 'http://k3d-shop-serverlb'
         }
         sh '''
+          # Rollback layer 1+2: a release whose pods never get Ready fails here (old pods keep serving)
           for d in $SERVICES nginx; do kubectl -n shop rollout status "deploy/$d" --timeout=150s; done
           ./jenkins/scripts/smoke-test.sh "$SHOP_URL"
+        '''
+        // Rollback layer 3: watch the 5xx ratio for 2 minutes while sending light payment traffic.
+        // The declined test card (ends in 0000) creates no orders and returns 402, which is not a 5xx;
+        // only real server errors move the ratio.
+        sh '''
+          ( end=$((SECONDS + 130)); while [ $SECONDS -lt $end ]; do
+              curl -s -o /dev/null -m 5 -X POST -H 'Content-Type: application/json' \
+                -d '{"product_id": 1, "card": "4000000000000000"}' "$SHOP_URL/api/payment/pay"
+              curl -s -o /dev/null -m 5 "$SHOP_URL/api/search/search?q=a"
+              sleep 0.3
+            done ) &
+          ./jenkins/scripts/metric-gate.sh 120 0.05
+          wait
         '''
       }
     }
@@ -107,6 +121,17 @@ pipeline {
 
   post {
     success { echo "Deployed ${env.GIT_SHA} to ${env.TARGET}: ${env.SHOP_URL}" }
+    failure {
+      script {
+        if (env.DEPLOYED == 'true') {
+          echo 'Deploy or verification failed: rolling back to the previous revision (rollback layer 2/3)'
+          sh './jenkins/scripts/rollback.sh'
+          sh './jenkins/scripts/smoke-test.sh "$SHOP_URL" || true'
+        } else {
+          echo 'Failed before deploying: nothing to roll back, the cluster was not touched'
+        }
+      }
+    }
     always  { sh 'docker logout >/dev/null 2>&1 || true' }
   }
 }

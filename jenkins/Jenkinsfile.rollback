@@ -1,0 +1,36 @@
+// shop-rollback: one-click manual rollback (deliverable 8, layer 4).
+pipeline {
+  agent any
+  parameters {
+    choice(name: 'TARGET_ENV', choices: ['local', 'aws'], description: 'Cluster')
+    choice(name: 'SERVICE', choices: ['web', 'search', 'payment', 'nginx'], description: 'Deployment to roll back')
+    string(name: 'REVISION', defaultValue: '', description: 'Revision number from the history below; empty = previous revision')
+  }
+  options { timestamps(); timeout(time: 15, unit: 'MINUTES') }
+  environment { KUBECONFIG = "${env.JENKINS_HOME}/kube/${params.TARGET_ENV ?: 'local'}.yaml" }
+  stages {
+    stage('History') {
+      steps { sh 'kubectl -n shop rollout history "deploy/$SERVICE"' }
+    }
+    stage('Roll back') {
+      steps {
+        sh '''
+          if [ -n "$REVISION" ]; then
+            kubectl -n shop rollout undo "deploy/$SERVICE" --to-revision="$REVISION"
+          else
+            kubectl -n shop rollout undo "deploy/$SERVICE"
+          fi
+          kubectl -n shop rollout status "deploy/$SERVICE" --timeout=150s
+        '''
+      }
+    }
+    stage('Result') {
+      steps {
+        sh '''
+          kubectl -n shop rollout history "deploy/$SERVICE" | tail -n 4
+          kubectl -n shop get deploy "$SERVICE" -o jsonpath='{.spec.template.spec.containers[0].image}{"\\n"}'
+        '''
+      }
+    }
+  }
+}

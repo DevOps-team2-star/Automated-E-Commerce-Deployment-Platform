@@ -114,3 +114,18 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
   the AWS server IP changes on every apply.
 - The local DB secret is now created by `local-k8s-up.sh` instead of kustomize, so a Jenkins deploy can
   never change the password Postgres was initialised with.
+
+## Part 6 - Automated rollback
+
+- Layer 1 (Kubernetes): rolling updates with `maxUnavailable: 0` + readiness probes; a release whose pods
+  never get Ready never receives traffic.
+- Layer 2 (pipeline): `rollout status --timeout=150s` and the smoke test in Verify; on failure after a
+  deploy, `post { failure }` runs `jenkins/scripts/rollback.sh` (`kubectl rollout undo` for each service,
+  skipping services with no previous revision) and re-runs the smoke test.
+- Layer 3 (metrics): `jenkins/scripts/metric-gate.sh` queries Prometheus through the API server proxy
+  for 120 s while Verify sends light traffic; 5xx ratio above 5% fails the build -> rollback.
+- Layer 4 (manual): `shop-rollback` job (`jenkins/Jenkinsfile.rollback`): service + optional revision.
+- Layer 5 (infra): S3 state versioning + `git revert` + apply (Part 7).
+- Demo without Jenkins: `scripts/rollback-demo.sh` (bad release held back, zero non-200 responses, undo).
+- Demo with Jenkins: commit `FAIL_READY: "true"` in `k8s/base/web.yaml` (layer 2) or `ERROR_RATE: "0.3"`
+  in `k8s/base/payment.yaml` (layer 3), push, watch the build roll back, then `git revert` the commit.
