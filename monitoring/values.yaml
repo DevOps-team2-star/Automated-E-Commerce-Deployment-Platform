@@ -1,0 +1,50 @@
+# kube-prometheus-stack values for both clusters (k3d locally, k3s on AWS).
+# Installed by monitoring/install.sh (locally) and by Ansible role `platform` (AWS).
+
+# k3s runs etcd/scheduler/controller-manager/proxy inside one binary, so these default scrape
+# jobs would only show as DOWN targets. Turn them off.
+kubeEtcd: { enabled: false }
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeProxy: { enabled: false }
+
+prometheus:
+  prometheusSpec:
+    # Pick up every ServiceMonitor / PrometheusRule in the cluster, not only ones labelled for this release
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    retention: 2d
+    resources:
+      requests: { cpu: 100m, memory: 400Mi }
+      limits:   { memory: 1Gi }
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+
+grafana:
+  admin:
+    existingSecret: grafana-admin          # created by install.sh / Ansible with a random password
+    userKey: admin-user
+    passwordKey: admin-password
+  defaultDashboardsTimezone: Africa/Cairo
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL                 # loads the shop dashboards ConfigMaps from Git
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }

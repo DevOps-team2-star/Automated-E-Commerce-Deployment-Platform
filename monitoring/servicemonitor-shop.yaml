@@ -1,0 +1,25 @@
+# Tells the Prometheus Operator to scrape /metrics of the shop services and the nginx exporter.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: shop-services
+  namespace: monitoring
+spec:
+  namespaceSelector: { matchNames: [shop] }
+  selector:
+    matchExpressions:
+      - { key: app, operator: In, values: [web, search, payment] }
+  endpoints:
+    - { port: http, path: /metrics, interval: 15s }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: shop-nginx
+  namespace: monitoring
+spec:
+  namespaceSelector: { matchNames: [shop] }
+  selector:
+    matchLabels: { app: nginx }
+  endpoints:
+    - { port: metrics, path: /metrics, interval: 15s }
