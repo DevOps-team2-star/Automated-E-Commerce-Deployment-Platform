@@ -1,0 +1,9 @@
+# Non-secret settings shared by the services. Environment-specific values that come from
+# Terraform (e.g. the S3 image URL) are added on AWS by Ansible in the optional ConfigMap `shop-env`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  SEARCH_URL: http://search:8081
+  PAYMENT_URL: http://payment:8082

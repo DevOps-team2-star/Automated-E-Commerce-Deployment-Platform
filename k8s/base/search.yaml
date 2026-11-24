@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search
+  labels: { app: search }
+spec:
+  # no `replicas:` - the HPA owns the replica count (an apply would otherwise reset it)
+  revisionHistoryLimit: 5            # old ReplicaSets kept = rollback targets (Part 6)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }   # never go below desired capacity
+  selector:
+    matchLabels: { app: search }
+  template:
+    metadata:
+      labels: { app: search }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: search
+          image: ecom-search                 # real name/tag set by the overlay or by Jenkins
+          ports:
+            - { name: http, containerPort: 8081 }
+          envFrom:
+            - configMapRef: { name: app-config }
+            - configMapRef: { name: shop-env, optional: true }
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: db-credentials, key: url } }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }   # HPA % is measured against the request
+            limits:   { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search
+  labels: { app: search }
+spec:
+  selector: { app: search }
+  ports:
+    - { name: http, port: 8081, targetPort: http }

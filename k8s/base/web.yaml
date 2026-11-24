@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels: { app: web }
+spec:
+  # no `replicas:` - the HPA owns the replica count (an apply would otherwise reset it)
+  revisionHistoryLimit: 5            # old ReplicaSets kept = rollback targets (Part 6)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }   # never go below desired capacity
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: web
+          image: ecom-web                 # real name/tag set by the overlay or by Jenkins
+          ports:
+            - { name: http, containerPort: 8080 }
+          envFrom:
+            - configMapRef: { name: app-config }
+            - configMapRef: { name: shop-env, optional: true }
+          env:
+            - name: FAIL_READY
+              value: "false"
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }   # HPA % is measured against the request
+            limits:   { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels: { app: web }
+spec:
+  selector: { app: web }
+  ports:
+    - { name: http, port: 8080, targetPort: http }

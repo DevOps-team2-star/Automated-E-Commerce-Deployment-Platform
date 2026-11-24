@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: shop
+# On AWS these objects are created by Ansible (role app_config) from Terraform outputs, not here:
+#   - Secret    db-credentials  (url + password for RDS)
+#   - Service   db              (type ExternalName -> RDS endpoint)
+#   - ConfigMap shop-env        (IMAGE_BASE_URL = S3 images bucket)
+resources:
+  - ../../base
+# Jenkins sets the real tags: kustomize edit set image ecom-web=docker.io/<user>/ecom-web:<git-sha>
+images:
+  - { name: ecom-web,     newName: docker.io/DOCKERHUB_USER/ecom-web,     newTag: CHANGE_ME }
+  - { name: ecom-search,  newName: docker.io/DOCKERHUB_USER/ecom-search,  newTag: CHANGE_ME }
+  - { name: ecom-payment, newName: docker.io/DOCKERHUB_USER/ecom-payment, newTag: CHANGE_ME }
