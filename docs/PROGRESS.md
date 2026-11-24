@@ -4,16 +4,16 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
 
 | Part | Branch | Status |
 |---|---|---|
-| 0 Setup + repo | feat/part-0-setup | built |
-| 1 Docker | feat/part-1-docker | |
-| 2 Nginx | feat/part-2-nginx | |
-| 3 Kubernetes + HPA | feat/part-3-kubernetes | |
-| 4 Monitoring | feat/part-4-monitoring | |
-| 5 Jenkins CI/CD | feat/part-5-jenkins | |
-| 6 Rollback | feat/part-6-rollback | |
-| 7 Terraform | feat/part-7-terraform | |
-| 8 Ansible | feat/part-8-ansible | |
-| 9 AWS demo | feat/part-9-demo | |
+| 0 Setup + repo | feat/part-0-setup | written, validated statically; live run pending |
+| 1 Docker | feat/part-1-docker | written, validated statically; live run pending |
+| 2 Nginx | feat/part-2-nginx | written, validated statically; live run pending |
+| 3 Kubernetes + HPA | feat/part-3-kubernetes | written, validated statically; live run pending |
+| 4 Monitoring | feat/part-4-monitoring | written, validated statically; live run pending |
+| 5 Jenkins CI/CD | feat/part-5-jenkins | written, validated statically; live run pending |
+| 6 Rollback | feat/part-6-rollback | written, validated statically; live run pending |
+| 7 Terraform | feat/part-7-terraform | written, validated statically; live run pending |
+| 8 Ansible | feat/part-8-ansible | written, validated statically; live run pending |
+| 9 AWS demo | feat/part-9-demo | written, validated statically; live run pending |
 
 ## Deviations from docs/PLAN.md
 
@@ -167,3 +167,17 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
   `ecom-db` image's psql.
 - Not verified here: no ansible available in this workspace (package downloads blocked). YAML parses;
   first real run happens with the AWS apply.
+
+## Part 9 - Demo
+
+- `docs/DEMO.md`: preparation checklist, 10-step script with timings, backup plan, after-demo checks.
+- Jenkins Lint stage also runs `terraform fmt -check`.
+
+## What still needs Kareem / a live machine
+
+1. Push access for Claude to `DevOps-team2-star/Automated-E-Commerce-Deployment-Platform` (Claude GitHub App),
+   or push the branches yourself (see below).
+2. First live run on the PC: `scripts/install-tools.sh`, compose smoke test, `local-k8s-up.sh`,
+   `monitoring/install.sh`, Jenkins.
+3. Docker Hub user + access token, AWS IAM keys and an RDS password in `jenkins/.env`.
+4. First `infra-apply` on AWS, then `infra-destroy`.

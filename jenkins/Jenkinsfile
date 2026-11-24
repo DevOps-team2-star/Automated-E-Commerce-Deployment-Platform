@@ -44,6 +44,7 @@ pipeline {
           ./scripts/check-sync.sh
           for o in local aws; do kustomize build k8s/overlays/$o > /dev/null && echo "kustomize $o OK"; done
           python3 -m py_compile app/web/app.py app/search/app.py app/payment/app.py
+          terraform fmt -check -recursive terraform
         '''
       }
     }
