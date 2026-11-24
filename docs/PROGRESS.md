@@ -129,3 +129,22 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
 - Demo without Jenkins: `scripts/rollback-demo.sh` (bad release held back, zero non-200 responses, undo).
 - Demo with Jenkins: commit `FAIL_READY: "true"` in `k8s/base/web.yaml` (layer 2) or `ERROR_RATE: "0.3"`
   in `k8s/base/payment.yaml` (layer 3), push, watch the build roll back, then `git revert` the commit.
+
+## Part 7 - Terraform
+
+- `terraform/bootstrap` + `bootstrap.sh`: state bucket `ecommerce-devops-tfstate-<account id>` (versioning,
+  AES256, public access block, 30-day expiry of old versions), created only if missing.
+- Modules `network`, `compute`, `database`, `storage`, `loadbalancer`; root `envs/demo` with partial S3
+  backend (`use_lockfile = true`), `default_tags`, validation on `admin_cidr`, `agent_count`, `db_password`,
+  `project`; `enable_rds` toggles the database module with `count`; `local_file` + `templatefile` write
+  `ansible/inventory/aws.ini` and `ansible/group_vars/all/tf.yml`.
+- Security groups: node SG rules are separate resources (the loadbalancer module adds the ALB -> 30080
+  rule; inline + separate rules on one group would fight); the ALB SG demonstrates a `dynamic` block.
+- Product images: `assets/product-images/*.svg` uploaded to S3; `app/db/init.sql` now references `.svg`.
+- `jenkins/Jenkinsfile.infra`: one file for `infra-apply` and `infra-destroy` (picked by job name):
+  SSH key + your public IP -> bootstrap -> init -> plan (+ cost note) -> approval (manual destroy only;
+  the nightly timer skips it) -> apply -> Ansible -> `shop-pipeline TARGET_ENV=aws`; destroy ends by counting
+  leftover EC2/RDS/ALB.
+- Verified here: `fmt` and `validate` pass for `bootstrap` and `envs/demo` (OpenTofu 1.10 with
+  hashicorp/aws 5.100). `plan`/`apply` need Kareem's AWS account.
+- Provider pinned to `>= 5.70, < 6.0` (the version validated); upgrading to v6 is a separate task.
