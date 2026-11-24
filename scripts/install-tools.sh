@@ -7,6 +7,7 @@ set -euo pipefail
 BIN=/usr/local/bin
 ARCH=amd64
 need() { ! command -v "$1" >/dev/null 2>&1; }
+warn() { echo "WARNING: $*" >&2; }
 
 echo "==> apt packages"
 sudo apt-get update -y
@@ -57,15 +58,17 @@ if need aws; then
 fi
 
 if need hey; then
-  echo "==> hey (load generator)"
-  curl -fsSLo /tmp/hey https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
-  sudo install -m 0755 /tmp/hey $BIN/hey
+  echo "==> hey (load generator, Ubuntu package)"
+  sudo apt-get install -y hey || warn "hey not installed: load tests (hpa-demo, rollback-demo) need it"
 fi
 
 if need hadolint; then
-  echo "==> hadolint"
-  curl -fsSLo /tmp/hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
-  sudo install -m 0755 /tmp/hadolint $BIN/hadolint
+  echo "==> hadolint (Dockerfile linter)"
+  if curl -fsSLo /tmp/hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64; then
+    sudo install -m 0755 /tmp/hadolint $BIN/hadolint
+  else
+    warn "hadolint not installed: only the Jenkins Lint stage uses it (the Jenkins image has its own)"
+  fi
 fi
 
-echo "==> done. Open a new shell (for pipx PATH), then run ./scripts/check-tools.sh"
+echo "==> done. Open a new shell (or: source ~/.bashrc) for the pipx PATH, then run ./scripts/check-tools.sh"
