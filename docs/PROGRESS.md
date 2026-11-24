@@ -148,3 +148,22 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
 - Verified here: `fmt` and `validate` pass for `bootstrap` and `envs/demo` (OpenTofu 1.10 with
   hashicorp/aws 5.100). `plan`/`apply` need Kareem's AWS account.
 - Provider pinned to `>= 5.70, < 6.0` (the version validated); upgrading to v6 is a separate task.
+
+## Part 8 - Ansible
+
+- `ansible/ansible.cfg`, `requirements.yml` (kubernetes.core), `group_vars/all/main.yml` (k3s channel,
+  timezone, kubeconfig path), `vault.yml.example` (Ansible Vault for manual runs).
+- `wait-for-hosts.yml`: waits for SSH and cloud-init on new instances.
+- `site.yml` plays: `common` (packages, timezone, sysctl + br_netfilter, SSH password login off, automatic
+  security updates) -> `k3s_server` (install with `--disable traefik --tls-san <public ip>`, token shared as
+  a host fact, kubeconfig rewritten to the public IP and written to `kubeconfig_out`) -> `k3s_agent` (join
+  over the private IP) -> on the controller via the Kubernetes API: `platform` (wait for all nodes Ready,
+  Grafana admin secret once, kube-prometheus-stack with `monitoring/values.yaml`, shop monitoring objects
+  via the kustomize lookup) and `app_config` (`db` ExternalName -> RDS, `db-credentials` with
+  `sslmode=require`, `shop-env` with the S3 image URL).
+- Idempotency: shell installs use `creates:`, checks use `changed_when: false`, secrets are created only
+  when missing; a second run should report `changed=0` on the nodes.
+- `k8s/overlays/aws/db-init-job.yaml`: Job that seeds RDS with `init.sql` (idempotent) using the
+  `ecom-db` image's psql.
+- Not verified here: no ansible available in this workspace (package downloads blocked). YAML parses;
+  first real run happens with the AWS apply.

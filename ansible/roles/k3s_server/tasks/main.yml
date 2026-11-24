@@ -1,0 +1,50 @@
+# Installs the k3s server (control plane + node) and exports what agents and Jenkins need.
+- name: Install k3s server (skipped when already installed = idempotent)
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -sfL https://get.k3s.io | sh -s - server \
+      --disable traefik \
+      --tls-san {{ ansible_host }} \
+      --write-kubeconfig-mode 644
+  args:
+    creates: /usr/local/bin/k3s
+    executable: /bin/bash
+  environment:
+    INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+
+- name: Wait for the node token
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+    timeout: 300
+
+- name: Read join token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_token_file
+
+- name: Share the token with the agents (host fact)
+  ansible.builtin.set_fact:
+    k3s_join_token: "{{ k3s_token_file.content | b64decode | trim }}"
+  no_log: true
+
+- name: Wait until the server node is Ready
+  ansible.builtin.command: k3s kubectl get node {{ ansible_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  register: node_ready
+  until: node_ready.stdout == "True"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Read kubeconfig
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: k3s_kubeconfig
+
+- name: Write kubeconfig for Jenkins/kubectl, pointing at the public IP
+  ansible.builtin.copy:
+    dest: "{{ kubeconfig_out }}"
+    mode: "0600"
+    content: "{{ k3s_kubeconfig.content | b64decode | replace('https://127.0.0.1:6443', 'https://' + ansible_host + ':6443') }}"
+  delegate_to: localhost
+  become: false

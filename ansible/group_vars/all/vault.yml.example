@@ -1,0 +1,5 @@
+# For runs from your own shell instead of Jenkins:
+#   cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+#   ansible-vault encrypt group_vars/all/vault.yml
+#   ansible-playbook site.yml --ask-vault-pass -e db_password='{{ vault_db_password }}'
+vault_db_password: "same-password-as-TF_VAR_db_password"

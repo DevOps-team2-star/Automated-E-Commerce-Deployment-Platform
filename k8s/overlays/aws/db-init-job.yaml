@@ -1,0 +1,24 @@
+# Seeds RDS with the shop schema + products (init.sql is idempotent: IF NOT EXISTS / WHERE NOT EXISTS).
+# Uses the ecom-db image only for its psql client and the baked init.sql. Jenkins deletes the finished
+# Job before each deploy (a Job's pod template can't be changed in place).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: psql
+          image: ecom-db
+          command: ["psql"]
+          args: ["$(DATABASE_URL)", "-v", "ON_ERROR_STOP=1", "-f", "/docker-entrypoint-initdb.d/init.sql"]
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: db-credentials, key: url } }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 200m, memory: 128Mi }

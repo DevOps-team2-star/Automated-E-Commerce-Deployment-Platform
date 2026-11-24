@@ -1,0 +1,20 @@
+# Joins worker nodes to the server over the VPC private network.
+- name: Join the cluster as a k3s agent (skipped when already joined)
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -sfL https://get.k3s.io | sh -s - agent
+  args:
+    creates: /usr/local/bin/k3s-agent-uninstall.sh
+    executable: /bin/bash
+  environment:
+    INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_URL: "https://{{ k3s_server_private_ip }}:6443"
+    K3S_TOKEN: "{{ hostvars[groups['server'][0]]['k3s_join_token'] }}"
+  no_log: true
+
+- name: Make sure the agent service is running
+  ansible.builtin.service:
+    name: k3s-agent
+    state: started
+    enabled: true

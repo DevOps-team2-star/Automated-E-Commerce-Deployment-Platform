@@ -1,0 +1,12 @@
+# New EC2 instances need a minute before SSH answers and cloud-init finishes.
+- name: Wait for the new instances
+  hosts: k3s
+  gather_facts: false
+  tasks:
+    - name: Wait until SSH works
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+        sleep: 10
+    - name: Wait for cloud-init to finish
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false

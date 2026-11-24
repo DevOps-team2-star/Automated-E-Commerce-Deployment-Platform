@@ -1,0 +1,59 @@
+# Runs on the Ansible controller (Jenkins) against the Kubernetes API with the fetched kubeconfig.
+- name: Wait until every node has joined and is Ready
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl get nodes --no-headers | awk '$2 == "Ready"' | wc -l
+  args: { executable: /bin/bash }
+  environment: { KUBECONFIG: "{{ kubeconfig_out }}" }
+  register: ready_nodes
+  until: ready_nodes.stdout | int == (groups['k3s'] | length)
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Monitoring namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: monitoring
+    state: present
+
+- name: Check for the Grafana admin secret
+  kubernetes.core.k8s_info:
+    kind: Secret
+    namespace: monitoring
+    name: grafana-admin
+  register: grafana_secret
+
+- name: Create the Grafana admin secret once (random password)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata: { name: grafana-admin, namespace: monitoring }
+      stringData:
+        admin-user: admin
+        admin-password: "{{ lookup('ansible.builtin.password', '/dev/null', length=16, chars=['ascii_letters', 'digits']) }}"
+  when: grafana_secret.resources | length == 0
+  no_log: true
+
+- name: Prometheus community Helm repo
+  kubernetes.core.helm_repository:
+    name: prometheus-community
+    repo_url: https://prometheus-community.github.io/helm-charts
+
+- name: Install kube-prometheus-stack (same values as the local cluster)
+  kubernetes.core.helm:
+    name: monitoring
+    chart_ref: prometheus-community/kube-prometheus-stack
+    release_namespace: monitoring
+    values_files: ["{{ repo_root }}/monitoring/values.yaml"]
+    update_repo_cache: true
+    wait: true
+    timeout: 15m0s
+
+- name: Shop ServiceMonitors, alert rules and dashboards (kustomize monitoring/)
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('kubernetes.core.kustomize', dir=repo_root + '/monitoring') }}"

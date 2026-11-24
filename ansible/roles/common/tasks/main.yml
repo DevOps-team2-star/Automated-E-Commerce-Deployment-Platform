@@ -1,0 +1,62 @@
+# Base OS configuration for every k3s node (Ubuntu 24.04).
+- name: Install base packages
+  ansible.builtin.apt:
+    name: [curl, ca-certificates, jq, unattended-upgrades, apt-transport-https]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Read current timezone
+  ansible.builtin.command: timedatectl show -p Timezone --value
+  register: current_tz
+  changed_when: false
+
+- name: Set timezone
+  ansible.builtin.command: timedatectl set-timezone {{ timezone }}
+  when: current_tz.stdout != timezone
+  changed_when: true
+
+- name: Kernel settings for Kubernetes networking
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/90-k3s.conf
+    mode: "0644"
+    content: |
+      net.ipv4.ip_forward = 1
+      net.bridge.bridge-nf-call-iptables = 1
+      fs.inotify.max_user_instances = 512
+  notify: Reload sysctl
+
+- name: Load br_netfilter at boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k3s.conf
+    mode: "0644"
+    content: |
+      br_netfilter
+
+- name: Check whether br_netfilter is loaded
+  ansible.builtin.command: grep -q '^br_netfilter ' /proc/modules
+  register: brnf
+  changed_when: false
+  failed_when: false
+
+- name: Load br_netfilter now
+  ansible.builtin.command: modprobe br_netfilter
+  when: brnf.rc != 0
+  changed_when: true
+  notify: Reload sysctl
+
+- name: Disable SSH password logins (keys only)
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/99-hardening.conf
+    line: "PasswordAuthentication no"
+    create: true
+    mode: "0644"
+  notify: Restart ssh
+
+- name: Enable automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";

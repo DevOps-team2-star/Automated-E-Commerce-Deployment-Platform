@@ -1,0 +1,24 @@
+# Turns the bare EC2 instances from Terraform into a k3s cluster running the platform pieces.
+#   ansible-playbook site.yml -e db_password=...      (Jenkins also passes -e kubeconfig_out=...)
+- name: Base configuration of every node
+  hosts: k3s
+  become: true
+  roles: [common]
+
+- name: k3s server
+  hosts: server
+  become: true
+  roles: [k3s_server]
+
+- name: k3s agents
+  hosts: agents
+  become: true
+  roles: [k3s_agent]
+
+- name: Cluster platform (monitoring) and app configuration, via the Kubernetes API
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  environment:
+    K8S_AUTH_KUBECONFIG: "{{ kubeconfig_out }}"
+  roles: [platform, app_config]
