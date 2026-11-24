@@ -10,6 +10,7 @@ if ! k3d cluster list -o json | jq -e --arg c "$CLUSTER" '.[] | select(.name == 
   k3d cluster create "$CLUSTER" --agents 2 \
     -p "8080:80@loadbalancer" \
     --k3s-arg "--disable=traefik@server:0" \
+    --k3s-arg "--tls-san=k3d-${CLUSTER}-serverlb@server:0" \
     --wait
 fi
 kubectl config use-context "k3d-$CLUSTER" >/dev/null
@@ -21,11 +22,13 @@ REGISTRY=local TAG=dev docker compose -f docker/docker-compose.yml --env-file do
 echo "==> Importing images into the cluster (no registry needed locally)"
 k3d image import -c "$CLUSTER" local/ecom-db:dev local/ecom-web:dev local/ecom-search:dev local/ecom-payment:dev
 
-echo "==> DB credentials secret source (k8s/overlays/local/db.env, git-ignored)"
-if [ ! -f k8s/overlays/local/db.env ]; then
-  pw=$(grep -E '^DB_PASSWORD=' docker/.env | cut -d= -f2-)
-  printf 'password=%s\nurl=postgresql://postgres:%s@db:5432/shop\n' "$pw" "$pw" > k8s/overlays/local/db.env
-fi
+echo "==> Namespace + db-credentials secret (password from docker/.env)"
+kubectl create namespace shop --dry-run=client -o yaml | kubectl apply -f -
+pw=$(grep -E '^DB_PASSWORD=' docker/.env | cut -d= -f2-)
+kubectl -n shop create secret generic db-credentials \
+  --from-literal=password="$pw" \
+  --from-literal=url="postgresql://postgres:${pw}@db:5432/shop" \
+  --dry-run=client -o yaml | kubectl apply -f -
 
 echo "==> Deploying"
 kubectl apply -k k8s/overlays/local

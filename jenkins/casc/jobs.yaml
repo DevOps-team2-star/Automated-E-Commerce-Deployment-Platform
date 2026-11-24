@@ -1,0 +1,52 @@
+# The four pipeline jobs, defined with Job DSL and loaded by Configuration as Code.
+jobs:
+  - script: |
+      pipelineJob('shop-pipeline') {
+        description('CI/CD for web, search, payment: build, test, push, deploy, verify, auto-rollback')
+        properties {
+          disableConcurrentBuilds()
+          pipelineTriggers { triggers { pollSCM { scmpoll_spec('H/2 * * * *') } } }
+        }
+        definition {
+          cpsScm {
+            scm { git { remote { url('${REPO_URL}') }; branch('*/main') } }
+            scriptPath('jenkins/Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }
+      pipelineJob('shop-rollback') {
+        description('Manual rollback of one service to a chosen revision')
+        definition {
+          cpsScm {
+            scm { git { remote { url('${REPO_URL}') }; branch('*/main') } }
+            scriptPath('jenkins/Jenkinsfile.rollback')
+            lightweight(true)
+          }
+        }
+      }
+      pipelineJob('infra-apply') {
+        description('Terraform apply -> Ansible -> deploy the shop to AWS')
+        properties { disableConcurrentBuilds() }
+        definition {
+          cpsScm {
+            scm { git { remote { url('${REPO_URL}') }; branch('*/main') } }
+            scriptPath('jenkins/Jenkinsfile.infra')
+            lightweight(true)
+          }
+        }
+      }
+      pipelineJob('infra-destroy') {
+        description('Terraform destroy of all demo resources. Also runs every night at 23:00 Africa/Cairo.')
+        properties {
+          disableConcurrentBuilds()
+          pipelineTriggers { triggers { cron { spec('TZ=Africa/Cairo\n0 23 * * *') } } }
+        }
+        definition {
+          cpsScm {
+            scm { git { remote { url('${REPO_URL}') }; branch('*/main') } }
+            scriptPath('jenkins/Jenkinsfile.infra')
+            lightweight(true)
+          }
+        }
+      }
