@@ -1,0 +1,48 @@
+# Environment-specific objects that come from Terraform outputs (the rest is in k8s/overlays/aws).
+- name: Require the database password
+  ansible.builtin.assert:
+    that: db_password | length >= 8
+    fail_msg: "Pass the RDS password: -e db_password=... (Jenkins does this from the db-password credential)"
+    quiet: true
+
+- name: Shop namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: shop
+    state: present
+
+- name: Service `db` -> RDS endpoint (DNS CNAME), so the apps use the same host name as locally
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata: { name: db, namespace: shop, labels: { app: db } }
+      spec:
+        type: ExternalName
+        externalName: "{{ rds_host }}"
+  when: rds_enabled | bool
+
+- name: Secret db-credentials (RDS needs TLS -> sslmode=require)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata: { name: db-credentials, namespace: shop }
+      type: Opaque
+      stringData:
+        password: "{{ db_password }}"
+        url: "postgresql://{{ rds_user }}:{{ db_password | urlencode }}@db:{{ rds_port }}/{{ rds_db }}?sslmode=require"
+  no_log: true
+
+- name: ConfigMap shop-env (product images served from S3)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata: { name: shop-env, namespace: shop }
+      data:
+        IMAGE_BASE_URL: "{{ images_base_url }}"

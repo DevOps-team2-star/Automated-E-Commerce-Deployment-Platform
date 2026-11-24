@@ -7,8 +7,10 @@ namespace: shop
 #   - ConfigMap shop-env        (IMAGE_BASE_URL = S3 images bucket)
 resources:
   - ../../base
+  - db-init-job.yaml
 # Jenkins sets the real tags: kustomize edit set image ecom-web=docker.io/<user>/ecom-web:<git-sha>
 images:
   - { name: ecom-web,     newName: docker.io/DOCKERHUB_USER/ecom-web,     newTag: CHANGE_ME }
   - { name: ecom-search,  newName: docker.io/DOCKERHUB_USER/ecom-search,  newTag: CHANGE_ME }
   - { name: ecom-payment, newName: docker.io/DOCKERHUB_USER/ecom-payment, newTag: CHANGE_ME }
+  - { name: ecom-db,      newName: docker.io/DOCKERHUB_USER/ecom-db,      newTag: CHANGE_ME }

@@ -1,0 +1,10 @@
+# Shared variables. Terraform writes the infrastructure values to group_vars/all/tf.yml.
+k3s_channel: stable                 # https://update.k3s.io channel used by the install script
+k3s_version: ""                     # set e.g. "v1.33.5+k3s1" to pin an exact version
+timezone: Africa/Cairo
+
+repo_root: "{{ playbook_dir }}/.."
+kubeconfig_out: "{{ playbook_dir }}/kubeconfig-aws.yaml"   # Jenkins passes $JENKINS_HOME/kube/aws.yaml
+
+# Passed with -e db_password=... (Jenkins credential) or from an ansible-vault file (vault.yml)
+db_password: ""
