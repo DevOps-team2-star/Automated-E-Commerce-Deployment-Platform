@@ -1,0 +1,20 @@
+# Keep at least one pod of each service during voluntary disruptions (node drain, upgrades).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: web }
+spec: { minAvailable: 1, selector: { matchLabels: { app: web } } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: search }
+spec: { minAvailable: 1, selector: { matchLabels: { app: search } } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: payment }
+spec: { minAvailable: 1, selector: { matchLabels: { app: payment } } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: nginx }
+spec: { minAvailable: 1, selector: { matchLabels: { app: nginx } } }

@@ -1,0 +1,53 @@
+# Local only: Postgres inside the cluster. On AWS the database is RDS and Ansible creates a
+# `db` Service of type ExternalName that points at the RDS endpoint instead.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  labels: { app: db }
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels: { app: db }
+  template:
+    metadata:
+      labels: { app: db }
+    spec:
+      containers:
+        - name: postgres
+          image: ecom-db                      # postgres:16-alpine + init.sql (app/db/Dockerfile)
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          env:
+            - { name: POSTGRES_DB, value: shop }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres", "-d", "shop"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres", "-d", "shop"] }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1", memory: 512Mi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 1Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  labels: { app: db }
+spec:
+  selector: { app: db }
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }

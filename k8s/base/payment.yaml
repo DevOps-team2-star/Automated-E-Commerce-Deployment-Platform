@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  labels: { app: payment }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5            # old ReplicaSets kept = rollback targets (Part 6)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }   # never go below desired capacity
+  selector:
+    matchLabels: { app: payment }
+  template:
+    metadata:
+      labels: { app: payment }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: payment
+          image: ecom-payment                 # real name/tag set by the overlay or by Jenkins
+          ports:
+            - { name: http, containerPort: 8082 }
+          envFrom:
+            - configMapRef: { name: app-config }
+            - configMapRef: { name: shop-env, optional: true }
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: db-credentials, key: url } }
+            - name: ERROR_RATE
+              value: "0"
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }   # HPA % is measured against the request
+            limits:   { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment
+  labels: { app: payment }
+spec:
+  selector: { app: payment }
+  ports:
+    - { name: http, port: 8082, targetPort: http }

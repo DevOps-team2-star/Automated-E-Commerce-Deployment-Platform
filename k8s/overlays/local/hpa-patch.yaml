@@ -1,0 +1,4 @@
+# Laptop has limited CPU: cap scaling at 4 pods
+- op: replace
+  path: /spec/maxReplicas
+  value: 4

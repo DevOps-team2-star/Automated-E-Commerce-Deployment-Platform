@@ -61,3 +61,21 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
 - Verify: `./scripts/compose-smoke-test.sh` (separate project `shop-test` on port 18080; requests sent from
   a curl container inside the stack network: routes + a purchase + a declined card),
   `./scripts/nginx-demo.sh` (routing table, spread over 3 search replicas, 429s from the rate limit).
+
+## Part 3 - Kubernetes with auto-scaling
+
+- `k8s/base`: namespace `shop`; Deployments + Services for web, search, payment (probes on `/ready` and
+  `/health`, requests/limits, non-root, `maxUnavailable: 0`, `revisionHistoryLimit: 5`); `nginx`
+  Deployment (same `default.conf` via a generated ConfigMap, plus `nginx-prometheus-exporter` sidecar)
+  and Service (LoadBalancer :80, nodePort 30080); HPAs for web and search (60% CPU, 2-6 pods, 120 s
+  scale-down window); PodDisruptionBudgets.
+- web and search Deployments have no `replicas:` field: the HPA owns it, so a `kubectl apply` doesn't
+  reset a scaled-out deployment.
+- `k8s/overlays/local`: Postgres StatefulSet + PVC (`local/ecom-db` image with init.sql), Secret
+  generated from `db.env` (git-ignored), HPA max 4, images `local/ecom-*:dev` imported into k3d.
+- `k8s/overlays/aws`: base + Docker Hub images (tags set by Jenkins). The `db` ExternalName Service,
+  the `db-credentials` Secret and the `shop-env` ConfigMap are created by Ansible from Terraform outputs.
+- Scripts: `scripts/local-k8s-up.sh` (create cluster, build, import, deploy), `scripts/hpa-demo.sh`
+  (load + watch scaling), `scripts/check-sync.sh` (nginx config copies match).
+- Verified here: `kustomize build` of both overlays, hadolint on all Dockerfiles. Cluster run pending on
+  Kareem's PC.
