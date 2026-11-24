@@ -18,4 +18,22 @@ terraform {
 provider "aws" {
   region = var.region
   default_tags { tags = local.tags }
+
+  # Local AWS emulator (MiniStack or LocalStack on :4566) when var.aws_endpoint is set.
+  # Empty string = real AWS: no endpoint override and all normal checks on.
+  dynamic "endpoints" {
+    for_each = var.aws_endpoint == "" ? [] : [var.aws_endpoint]
+    content {
+      ec2   = endpoints.value
+      elbv2 = endpoints.value
+      iam   = endpoints.value
+      rds   = endpoints.value
+      s3    = endpoints.value
+      sts   = endpoints.value
+    }
+  }
+  s3_use_path_style           = var.aws_endpoint != ""
+  skip_credentials_validation = var.aws_endpoint != ""
+  skip_requesting_account_id  = var.aws_endpoint != ""
+  skip_metadata_api_check     = var.aws_endpoint != ""
 }

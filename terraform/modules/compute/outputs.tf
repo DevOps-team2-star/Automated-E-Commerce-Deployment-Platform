@@ -23,5 +23,5 @@ output "instance_ids" {
 }
 
 output "ami_name" {
-  value = data.aws_ami.ubuntu.name
+  value = var.ami_id != "" ? var.ami_id : data.aws_ami.ubuntu[0].name
 }

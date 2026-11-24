@@ -29,9 +29,19 @@ pipeline {
         checkout scm
         script {
           env.GIT_SHA  = sh(returnStdout: true, script: 'git rev-parse --short=8 HEAD').trim()
-          env.REGISTRY = "docker.io/${env.DOCKERHUB_USR}"
           env.TAG      = env.GIT_SHA
           env.TARGET   = params.TARGET_ENV ?: 'local'
+          // No Docker Hub credentials yet -> use the local k3d registry (works for TARGET_ENV=local only)
+          env.USE_DOCKERHUB = (env.DOCKERHUB_USR && env.DOCKERHUB_USR != 'not-set') ? 'true' : 'false'
+          if (env.USE_DOCKERHUB == 'true') {
+            env.REGISTRY      = "docker.io/${env.DOCKERHUB_USR}"   // push and pull name
+            env.PULL_REGISTRY = env.REGISTRY
+          } else {
+            if (env.TARGET == 'aws') { error('Deploying to AWS needs Docker Hub credentials (dockerhub) in jenkins/.env') }
+            env.REGISTRY      = 'localhost:5050'                   // pushed through the host Docker
+            env.PULL_REGISTRY = 'k3d-registry.localhost:5050'      // same registry, name seen inside the cluster
+          }
+          echo "Images: push ${env.REGISTRY}/ecom-*:${env.TAG}, cluster pulls ${env.PULL_REGISTRY}"
           currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.GIT_SHA} -> ${env.TARGET}"
         }
       }
@@ -69,7 +79,7 @@ pipeline {
     stage('Push') {
       steps {
         sh '''
-          echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin
+          if [ "$USE_DOCKERHUB" = "true" ]; then echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin; fi
           for s in db $SERVICES; do docker push "$REGISTRY/ecom-$s:$TAG"; done
         '''
       }
@@ -79,8 +89,8 @@ pipeline {
       steps {
         dir("k8s/overlays/${env.TARGET}") {
           sh '''
-            for s in $SERVICES; do kustomize edit set image "ecom-$s=$REGISTRY/ecom-$s:$TAG"; done
-            if [ "$TARGET" = "aws" ]; then kustomize edit set image "ecom-db=$REGISTRY/ecom-db:$TAG"; fi
+            for s in $SERVICES; do kustomize edit set image "ecom-$s=$PULL_REGISTRY/ecom-$s:$TAG"; done
+            if [ "$TARGET" = "aws" ]; then kustomize edit set image "ecom-db=$PULL_REGISTRY/ecom-db:$TAG"; fi
             git --no-pager diff --stat . || true
           '''
         }

@@ -1,6 +1,6 @@
 output "shop_url" {
   description = "Public URL of the shop (ALB)"
-  value       = "http://${module.loadbalancer.dns_name}"
+  value       = var.enable_alb ? "http://${one(module.loadbalancer[*].dns_name)}" : "(no load balancer: enable_alb = false)"
 }
 
 output "server_public_ip" {

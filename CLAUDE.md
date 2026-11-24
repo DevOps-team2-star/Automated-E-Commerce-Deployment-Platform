@@ -25,6 +25,10 @@ change in `docs/PROGRESS.md`.
   `infra-apply`, `infra-destroy` (destroy also nightly 23:00 Africa/Cairo).
 - Terraform: remote state in S3 with `use_lockfile = true`; modules network, compute, database,
   storage, loadbalancer; `terraform/bootstrap` creates the state bucket and is never destroyed.
+- Until Kareem says otherwise, real AWS and Docker Hub are postponed: Terraform is tested against the local
+  AWS emulator (MiniStack by default, `scripts/emulator-up.sh`, `terraform/emulator.sh`, job `infra-emulator`)
+  and images go to the local k3d registry (`localhost:5050`). The emulator is not real AWS, so the
+  terraform apply/destroy safety rule below does not apply to it.
 
 ## Safety rules
 - NEVER run `terraform apply`, `terraform destroy`, or anything that creates or deletes AWS

@@ -25,3 +25,14 @@ terraform -chdir=terraform/envs/demo destroy -var-file=demo.tfvars
 Labs (docs/PLAN.md, Part 7): `-var agent_count=2` (count), `-var enable_rds=false` (conditional module),
 `terraform workspace new test` + `-var-file=test.tfvars` (workspaces), `-var agent_count=9` (validation),
 `public_ports = [80, 8080]` in a tfvars file (dynamic block).
+
+## Testing without AWS (local emulator)
+
+```bash
+./scripts/emulator-up.sh                 # MiniStack on http://localhost:4566 (no account)
+./terraform/emulator.sh cycle            # apply -> list resources -> destroy
+ENABLE_RDS=false ENABLE_ALB=false EMULATOR=localstack ...   # LocalStack free tier has no RDS/ELBv2
+```
+
+The same modules run; only `aws_endpoint`, `ami_id` and the backend settings change. Emulated EC2
+instances are not real servers, so Ansible is not run in this mode.

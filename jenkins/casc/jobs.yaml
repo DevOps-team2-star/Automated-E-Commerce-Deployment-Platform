@@ -36,6 +36,17 @@ jobs:
           }
         }
       }
+      pipelineJob('infra-emulator') {
+        description('Terraform against the local AWS emulator (no account, no cost): apply, verify, destroy')
+        properties { disableConcurrentBuilds() }
+        definition {
+          cpsScm {
+            scm { git { remote { url('${REPO_URL}') }; branch('*/main') } }
+            scriptPath('jenkins/Jenkinsfile.emulator')
+            lightweight(true)
+          }
+        }
+      }
       pipelineJob('infra-destroy') {
         description('Terraform destroy of all demo resources. Also runs every night at 23:00 Africa/Cairo.')
         properties {
