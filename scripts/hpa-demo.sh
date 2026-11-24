@@ -11,7 +11,7 @@ HEY=$!
 echo "==> Watching for ${SECS}s of load + 150s of cool-down"
 end=$((SECONDS + SECS + 150))
 while [ $SECONDS -lt $end ]; do
-  printf '%s  ' "$(date +%T)"; kubectl -n shop get hpa search --no-headers | awk '{print "search targets="$3" replicas="$6}'
+  printf '%s  ' "$(date +%T)"; kubectl -n shop get hpa search -o jsonpath='search cpu={.status.currentMetrics[0].resource.current.averageUtilization}% (target 60%) replicas={.status.currentReplicas}{"\n"}'
   sleep 10
 done
 wait $HEY || true
