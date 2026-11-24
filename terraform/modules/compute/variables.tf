@@ -41,3 +41,9 @@ variable "agent_instance_type" {
   type    = string
   default = "t3.small"
 }
+
+variable "ami_id" {
+  description = "Explicit AMI id; empty = latest Canonical Ubuntu 24.04"
+  type        = string
+  default     = ""
+}

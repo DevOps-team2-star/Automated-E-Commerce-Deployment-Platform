@@ -29,3 +29,6 @@ __pycache__/
 .DS_Store
 jenkins/.env
 terraform/envs/demo/tfplan
+terraform/envs/demo/tfplan-emulator
+terraform/bootstrap/terraform.tfstate*
+terraform/bootstrap/terraform.tfstate.d/

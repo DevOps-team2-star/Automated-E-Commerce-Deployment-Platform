@@ -1,0 +1,36 @@
+// infra-emulator: runs the real Terraform code against the local AWS emulator (MiniStack/LocalStack).
+// No AWS account, no cost. Start the emulator first: ./scripts/emulator-up.sh
+pipeline {
+  agent any
+  parameters {
+    choice(name: 'ACTION', choices: ['cycle', 'apply', 'destroy'], description: 'cycle = apply, verify, destroy')
+    booleanParam(name: 'ENABLE_RDS', defaultValue: true, description: 'false for LocalStack free tier (no RDS)')
+    booleanParam(name: 'ENABLE_ALB', defaultValue: true, description: 'false for LocalStack free tier (no ELBv2)')
+  }
+  options { timestamps(); disableConcurrentBuilds(); timeout(time: 30, unit: 'MINUTES') }
+  environment {
+    AWS_EMULATOR_URL = 'http://aws-emulator:4566'
+    SSH_KEY          = "${env.JENKINS_HOME}/.ssh/ecom-demo"
+  }
+  stages {
+    stage('Emulator reachable') {
+      steps {
+        sh 'curl -s -o /dev/null -w "emulator HTTP %{http_code}\\n" "$AWS_EMULATOR_URL" || { echo "Start it with ./scripts/emulator-up.sh"; exit 1; }'
+      }
+    }
+    stage('Terraform fmt + validate') {
+      steps {
+        sh '''
+          terraform fmt -check -recursive terraform
+          terraform -chdir=terraform/envs/demo init -backend=false -input=false >/dev/null
+          terraform -chdir=terraform/envs/demo validate
+        '''
+      }
+    }
+    stage('Terraform against the emulator') {
+      steps {
+        sh 'ENABLE_RDS=$ENABLE_RDS ENABLE_ALB=$ENABLE_ALB ./terraform/emulator.sh "$ACTION"'
+      }
+    }
+  }
+}

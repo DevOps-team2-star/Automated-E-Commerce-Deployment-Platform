@@ -181,3 +181,39 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
    `monitoring/install.sh`, Jenkins.
 3. Docker Hub user + access token, AWS IAM keys and an RDS password in `jenkins/.env`.
 4. First `infra-apply` on AWS, then `infra-destroy`.
+
+## Local AWS emulator + local registry (real AWS and Docker Hub postponed)
+
+Real AWS deployment is postponed. Until then the AWS side is tested against a local emulator, and the
+CI/CD pipeline works without any account.
+
+- **Emulator choice.** LocalStack now needs a (free Hobby) account + auth token since March 2026, and its
+  free tier has no RDS and no ELBv2. **MiniStack** (MIT, no account) is the default; LocalStack still works
+  (`EMULATOR=localstack`, with `ENABLE_RDS=false ENABLE_ALB=false`). Both listen on port 4566.
+- `scripts/emulator-up.sh`: starts the emulator as container `aws-emulator` on `localhost:4566`, joined to
+  the `k3d-shop` network (Jenkins reaches it at `http://aws-emulator:4566`), with the Docker socket so
+  emulated RDS can start a real Postgres container.
+- Terraform (same code as real AWS):
+  - `aws_endpoint` variable: empty = real AWS; set = provider `endpoints` (dynamic block), path-style S3
+    and skipped credential/account checks.
+  - `ami_id` variable skips the Ubuntu AMI lookup (emulators have their own fake AMIs).
+  - `enable_alb` toggles the load balancer module (`count`), like `enable_rds`.
+  - `terraform/bootstrap.sh` keeps the emulator's bootstrap state in a separate workspace (`emulator`).
+- `terraform/emulator.sh [cycle|apply|destroy]`: bootstrap the state bucket inside the emulator, `init` with
+  an S3 backend pointing at the emulator, plan/apply, list what was created (VPC, subnets, EC2, S3 images,
+  RDS, ALB), show outputs and the generated Ansible inventory, then destroy (`cycle`). Uses `-lock=false`
+  because emulators may not implement S3 conditional writes.
+- Jenkins job `infra-emulator` (`jenkins/Jenkinsfile.emulator`): fmt + validate + `emulator.sh`.
+- **Limit:** emulated EC2 instances are API records, not servers. Ansible and k3s are therefore exercised on
+  real AWS later; the `platform`/`app_config` logic is the same as what runs on the local k3d cluster.
+- **Local registry.** `scripts/local-k8s-up.sh` creates a k3d registry (push `localhost:5050`, pull
+  `k3d-registry.localhost:5050`) and attaches it to the cluster. When the `dockerhub` credential is not set,
+  `shop-pipeline` pushes there instead of Docker Hub (local deploys only; AWS still needs Docker Hub).
+
+Run it:
+
+```bash
+./scripts/local-k8s-up.sh          # cluster + registry (first time)
+./scripts/emulator-up.sh           # MiniStack on :4566
+./terraform/emulator.sh cycle      # Terraform apply -> verify -> destroy against the emulator
+```

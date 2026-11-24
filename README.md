@@ -73,8 +73,11 @@ docker compose -f docker/docker-compose.yml up -d --build
 ./scripts/local-k8s-up.sh
 ./monitoring/install.sh
 
-# Part 5-6: Jenkins -> http://localhost:8090
+# Part 5-6: Jenkins -> http://localhost:8090 (no Docker Hub needed: local registry localhost:5050)
 ./jenkins/run-jenkins.sh
+
+# Part 7 without an AWS account: Terraform against a local AWS emulator (MiniStack)
+./scripts/emulator-up.sh && ./terraform/emulator.sh cycle
 ```
 
 AWS (Parts 7-9): Jenkins job `infra-apply` builds everything, `infra-destroy` removes it

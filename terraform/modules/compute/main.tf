@@ -1,5 +1,6 @@
 # k3s nodes: 1 server + var.agent_count agents (Ubuntu 24.04), configured later by Ansible.
 data "aws_ami" "ubuntu" {
+  count       = var.ami_id == "" ? 1 : 0 # skip the lookup when an AMI is given (emulator)
   most_recent = true
   owners      = ["099720109477"] # Canonical
   filter {
@@ -10,6 +11,10 @@ data "aws_ami" "ubuntu" {
     name   = "virtualization-type"
     values = ["hvm"]
   }
+}
+
+locals {
+  ami_id = var.ami_id != "" ? var.ami_id : data.aws_ami.ubuntu[0].id
 }
 
 resource "aws_key_pair" "this" {
@@ -63,7 +68,7 @@ locals {
 }
 
 resource "aws_instance" "server" {
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = local.ami_id
   instance_type          = var.server_instance_type
   subnet_id              = var.subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.node.id]
@@ -85,7 +90,7 @@ resource "aws_instance" "server" {
 
 resource "aws_instance" "agent" {
   count                  = var.agent_count
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = local.ami_id
   instance_type          = var.agent_instance_type
   subnet_id              = var.subnet_ids[(count.index + 1) % length(var.subnet_ids)] # spread across AZs
   vpc_security_group_ids = [aws_security_group.node.id]

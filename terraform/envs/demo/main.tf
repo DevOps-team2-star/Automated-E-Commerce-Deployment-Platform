@@ -27,6 +27,7 @@ module "compute" {
   agent_count          = var.agent_count
   server_instance_type = var.server_instance_type
   agent_instance_type  = var.agent_instance_type
+  ami_id               = var.ami_id
 }
 
 module "database" {
@@ -48,6 +49,7 @@ module "storage" {
 
 module "loadbalancer" {
   source       = "../../modules/loadbalancer"
+  count        = var.enable_alb ? 1 : 0
   name         = local.name
   vpc_id       = module.network.vpc_id
   subnet_ids   = module.network.public_subnet_ids
@@ -79,7 +81,7 @@ resource "local_file" "ansible_vars" {
     rds_user        = one(module.database[*].username)
     rds_db          = one(module.database[*].db_name)
     images_base_url = module.storage.images_base_url
-    alb_dns_name    = module.loadbalancer.dns_name
+    alb_dns_name    = one(module.loadbalancer[*].dns_name)
     server_private  = module.compute.server_private_ip
   })
 }

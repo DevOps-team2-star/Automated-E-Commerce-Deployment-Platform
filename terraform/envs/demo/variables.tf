@@ -82,3 +82,21 @@ variable "db_password" {
     error_message = "db_password: at least 8 characters, and no / @ \" or spaces (RDS rules)."
   }
 }
+
+variable "aws_endpoint" {
+  description = "AWS emulator URL, e.g. http://localhost:4566. Empty = real AWS."
+  type        = string
+  default     = ""
+}
+
+variable "ami_id" {
+  description = "Use this AMI instead of looking up Ubuntu 24.04 (emulators have their own fake AMIs)"
+  type        = string
+  default     = ""
+}
+
+variable "enable_alb" {
+  description = "false = skip the load balancer (LocalStack's free tier has no ELBv2)"
+  type        = bool
+  default     = true
+}

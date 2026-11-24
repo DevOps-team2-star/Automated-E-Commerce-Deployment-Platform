@@ -5,9 +5,16 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 CLUSTER=${CLUSTER:-shop}
 
+REGISTRY_NAME=registry.localhost      # container k3d-registry.localhost, host port 5050
+if ! k3d registry list -o json | jq -e '.[] | select(.name == "k3d-registry.localhost")' >/dev/null; then
+  echo "==> Creating local image registry (push: localhost:5050, pull in cluster: k3d-registry.localhost:5050)"
+  k3d registry create "$REGISTRY_NAME" --port 5050
+fi
+
 if ! k3d cluster list -o json | jq -e --arg c "$CLUSTER" '.[] | select(.name == $c)' >/dev/null; then
   echo "==> Creating k3d cluster '$CLUSTER' (1 server + 2 agents, Traefik off, host 8080 -> LB :80)"
   k3d cluster create "$CLUSTER" --agents 2 \
+    --registry-use "k3d-${REGISTRY_NAME}:5050" \
     -p "8080:80@loadbalancer" \
     --k3s-arg "--disable=traefik@server:0" \
     --k3s-arg "--tls-san=k3d-${CLUSTER}-serverlb@server:0" \
