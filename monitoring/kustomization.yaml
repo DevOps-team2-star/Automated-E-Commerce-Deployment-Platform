@@ -1,0 +1,16 @@
+# Shop monitoring objects (applied after the kube-prometheus-stack Helm chart is installed).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - servicemonitor-shop.yaml
+  - alerts-shop.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"           # the Grafana sidecar loads every ConfigMap with this label
+configMapGenerator:
+  - name: dashboard-shop-golden-signals
+    files: [dashboards/shop-golden-signals.json]
+  - name: dashboard-shop-scaling
+    files: [dashboards/shop-scaling.json]
