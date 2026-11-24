@@ -8,13 +8,13 @@ x-db-url: &db-url "postgresql://postgres:${DB_PASSWORD:?set DB_PASSWORD in docke
 
 services:
   db:
-    image: postgres:16-alpine
+    build: { context: ../app/db }          # postgres:16-alpine + init.sql baked in
+    image: ${REGISTRY:-local}/ecom-db:${TAG:-dev}
     environment:
       POSTGRES_DB: shop
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ../app/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d shop"]
       interval: 5s
@@ -55,10 +55,8 @@ services:
 
   # Part 2: the only service that publishes a port
   nginx:
-    image: nginxinc/nginx-unprivileged:stable-alpine
-    volumes:
-      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ../nginx/50x.html:/usr/share/nginx/html/50x.html:ro
+    build: { context: ../nginx }           # nginx-unprivileged + default.conf baked in
+    image: ${REGISTRY:-local}/ecom-nginx:${TAG:-dev}
     ports: ["${NGINX_PORT:-80}:8080"]
     depends_on:
       web: { condition: service_healthy }

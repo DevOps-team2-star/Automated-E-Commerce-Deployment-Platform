@@ -55,5 +55,9 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
   service publishing a port (`NGINX_PORT`, default 80); web no longer publishes 8080.
 - The same `default.conf` is reused unchanged in Kubernetes (Part 3).
 - Run: `docker compose -f docker/docker-compose.yml up -d --build`, open http://localhost.
-- Verify: `./scripts/compose-smoke-test.sh` (routes + a purchase + a declined card),
+- `app/db/Dockerfile` and `nginx/Dockerfile` bake `init.sql` and `default.conf` into images instead of
+  bind-mounting them. Jenkins drives the host Docker through its socket, where bind-mount paths from the
+  Jenkins workspace would not exist, so baked images make the same compose file work in CI.
+- Verify: `./scripts/compose-smoke-test.sh` (separate project `shop-test` on port 18080; requests sent from
+  a curl container inside the stack network: routes + a purchase + a declined card),
   `./scripts/nginx-demo.sh` (routing table, spread over 3 search replicas, 429s from the rate limit).
