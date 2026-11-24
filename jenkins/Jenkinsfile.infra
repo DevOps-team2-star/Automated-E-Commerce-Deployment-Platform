@@ -1,0 +1,177 @@
+// infra-apply / infra-destroy (deliverable 7 + 4): one Jenkinsfile, behaviour picked by the job name.
+//   infra-apply   : bootstrap state bucket -> terraform apply -> ansible -> shop-pipeline (TARGET_ENV=aws)
+//   infra-destroy : terraform destroy (manual with approval, or nightly 23:00 Cairo without approval)
+pipeline {
+  agent any
+
+  parameters {
+    booleanParam(name: 'DEPLOY_APP', defaultValue: true, description: 'infra-apply: run shop-pipeline against AWS afterwards')
+    string(name: 'AGENT_COUNT', defaultValue: '1', description: 'infra-apply: number of k3s agent nodes (0-3)')
+    booleanParam(name: 'ENABLE_RDS', defaultValue: true, description: 'infra-apply: create RDS (false = faster infra-only test)')
+  }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    timeout(time: 60, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '30'))
+  }
+
+  environment {
+    ACTION           = "${env.JOB_NAME == 'infra-destroy' ? 'destroy' : 'apply'}"
+    TF_DIR           = 'terraform/envs/demo'
+    TF_IN_AUTOMATION = 'true'
+    AWS_REGION       = "${env.AWS_DEFAULT_REGION ?: 'eu-central-1'}"
+    SSH_KEY          = "${env.JENKINS_HOME}/.ssh/ecom-demo"
+    TF_VAR_public_key_path  = "${env.JENKINS_HOME}/.ssh/ecom-demo.pub"
+    TF_VAR_private_key_path = "${env.JENKINS_HOME}/.ssh/ecom-demo"
+    KUBECONFIG_AWS   = "${env.JENKINS_HOME}/kube/aws.yaml"
+    ANSIBLE_FORCE_COLOR = 'true'
+  }
+
+  stages {
+    stage('Prepare') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+          sh '''
+            aws sts get-caller-identity --query '[Account, Arn]' --output text
+            mkdir -p "$(dirname "$SSH_KEY")" "$JENKINS_HOME/kube" "$JENKINS_HOME/aws"
+            [ -f "$SSH_KEY" ] || ssh-keygen -t ed25519 -N '' -C ecom-demo -f "$SSH_KEY"
+          '''
+        }
+        script {
+          env.ADMIN_CIDR = sh(returnStdout: true, script: 'echo "$(curl -fsS https://checkip.amazonaws.com | tr -d "[:space:]")/32"').trim()
+          env.ACCOUNT_ID = ''
+          echo "Action: ${env.ACTION}  admin_cidr: ${env.ADMIN_CIDR}"
+        }
+      }
+    }
+
+    stage('Bootstrap state bucket') {
+      when { environment name: 'ACTION', value: 'apply' }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+          sh './terraform/bootstrap.sh'
+        }
+      }
+    }
+
+    stage('Init') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+          script {
+            def account = sh(returnStdout: true, script: 'aws sts get-caller-identity --query Account --output text').trim()
+            env.STATE_BUCKET = "ecommerce-devops-tfstate-${account}"
+            env.NOTHING_TO_DO = sh(returnStatus: true, script: 'aws s3api head-bucket --bucket "$STATE_BUCKET" 2>/dev/null') == 0 ? 'false' : 'true'
+          }
+          sh '''
+            if [ "$NOTHING_TO_DO" = "true" ]; then echo "No state bucket yet: nothing has ever been applied"; exit 0; fi
+            terraform -chdir="$TF_DIR" init -input=false -reconfigure \
+              -backend-config="bucket=$STATE_BUCKET" -backend-config="region=$AWS_REGION"
+          '''
+        }
+      }
+    }
+
+    stage('Plan') {
+      when { environment name: 'NOTHING_TO_DO', value: 'false' }
+      steps {
+        withCredentials([
+          usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY'),
+          string(credentialsId: 'db-password', variable: 'TF_VAR_db_password')
+        ]) {
+          sh '''
+            DESTROY=""; [ "$ACTION" = "destroy" ] && DESTROY="-destroy"
+            terraform -chdir="$TF_DIR" plan -input=false $DESTROY \
+              -var-file=demo.tfvars \
+              -var "admin_cidr=$ADMIN_CIDR" \
+              -var "agent_count=$AGENT_COUNT" \
+              -var "enable_rds=$ENABLE_RDS" \
+              -out=tfplan
+            terraform -chdir="$TF_DIR" show -no-color tfplan | grep -E '^Plan:|No changes' || true
+          '''
+        }
+        script {
+          if (env.ACTION == 'apply') {
+            echo '''Approximate on-demand cost while running (eu-central-1, check the AWS Pricing Calculator):
+  k3s server t3.medium ~$0.05/h | agent t3.small ~$0.02/h each | RDS db.t4g.micro ~$0.02/h
+  ALB ~$0.03/h | public IPv4 ~$0.005/h each | EBS/RDS storage a few cents per day
+  => roughly $0.12-0.15 per hour. infra-destroy runs every night at 23:00 Cairo time.'''
+          }
+        }
+      }
+    }
+
+    stage('Approve destroy') {
+      when {
+        allOf {
+          environment name: 'ACTION', value: 'destroy'
+          environment name: 'NOTHING_TO_DO', value: 'false'
+          expression { currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause').isEmpty() }
+        }
+      }
+      steps {
+        timeout(time: 15, unit: 'MINUTES') { input message: 'Destroy ALL demo resources on AWS?', ok: 'Destroy' }
+      }
+    }
+
+    stage('Apply plan') {
+      when { environment name: 'NOTHING_TO_DO', value: 'false' }
+      steps {
+        withCredentials([
+          usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY'),
+          string(credentialsId: 'db-password', variable: 'TF_VAR_db_password')
+        ]) {
+          sh 'terraform -chdir="$TF_DIR" apply -input=false tfplan'
+          sh '''
+            if [ "$ACTION" = "apply" ]; then
+              terraform -chdir="$TF_DIR" output
+              terraform -chdir="$TF_DIR" output -raw shop_url > "$JENKINS_HOME/aws/shop_url"
+            else
+              rm -f "$JENKINS_HOME/aws/shop_url" "$KUBECONFIG_AWS"
+            fi
+          '''
+        }
+      }
+    }
+
+    stage('Ansible: configure servers') {
+      when { environment name: 'ACTION', value: 'apply' }
+      steps {
+        withCredentials([string(credentialsId: 'db-password', variable: 'DB_PASSWORD')]) {
+          dir('ansible') {
+            sh '''
+              ansible-playbook wait-for-hosts.yml
+              ansible-playbook site.yml -e "kubeconfig_out=$KUBECONFIG_AWS" -e "db_password=$DB_PASSWORD"
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Deploy app to AWS') {
+      when { allOf { environment name: 'ACTION', value: 'apply'; expression { params.DEPLOY_APP } } }
+      steps {
+        build job: 'shop-pipeline', parameters: [string(name: 'TARGET_ENV', value: 'aws'), booleanParam(name: 'SKIP_TESTS', value: true)]
+        echo "Shop: ${readFile("${env.JENKINS_HOME}/aws/shop_url").trim()}"
+      }
+    }
+
+    stage('Verify nothing is left') {
+      when { environment name: 'ACTION', value: 'destroy' }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+          sh '''
+            echo "Running EC2 tagged Project=ecom: $(aws ec2 describe-instances --filters Name=tag:Project,Values=ecom Name=instance-state-name,Values=pending,running,stopping,stopped --query 'length(Reservations[].Instances[])' --output text)"
+            echo "RDS instances named ecom-*:      $(aws rds describe-db-instances --query "length(DBInstances[?starts_with(DBInstanceIdentifier, 'ecom-')])" --output text)"
+            echo "Load balancers named ecom-*:     $(aws elbv2 describe-load-balancers --query "length(LoadBalancers[?starts_with(LoadBalancerName, 'ecom-')])" --output text)"
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always { sh 'rm -f terraform/envs/demo/tfplan' }
+  }
+}

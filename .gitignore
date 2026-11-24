@@ -28,3 +28,4 @@ __pycache__/
 .idea/
 .DS_Store
 jenkins/.env
+terraform/envs/demo/tfplan
