@@ -1,0 +1,58 @@
+# Part 1 (+ Part 2 nginx): the whole shop on one machine.
+#   cp docker/.env.example docker/.env
+#   docker compose -f docker/docker-compose.yml up -d --build
+#   open http://localhost        (only nginx publishes a port)
+name: shop
+
+x-db-url: &db-url "postgresql://postgres:${DB_PASSWORD:?set DB_PASSWORD in docker/.env}@db:5432/shop"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../app/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  search:
+    build: { context: ../app/search }
+    image: ${REGISTRY:-local}/ecom-search:${TAG:-dev}
+    environment:
+      DATABASE_URL: *db-url
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+
+  payment:
+    build: { context: ../app/payment }
+    image: ${REGISTRY:-local}/ecom-payment:${TAG:-dev}
+    environment:
+      DATABASE_URL: *db-url
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../app/web
+      args: { APP_VERSION: "${TAG:-dev}" }
+    image: ${REGISTRY:-local}/ecom-web:${TAG:-dev}
+    environment:
+      SEARCH_URL: http://search:8081
+      PAYMENT_URL: http://payment:8082
+    depends_on:
+      search: { condition: service_healthy }
+      payment: { condition: service_healthy }
+    ports: ["8080:8080"]   # Part 1 only; Part 2 puts nginx in front and removes this
+    restart: unless-stopped
+
+volumes:
+  pgdata: {}
