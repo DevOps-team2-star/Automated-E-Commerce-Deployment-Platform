@@ -72,7 +72,7 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
 - web and search Deployments have no `replicas:` field: the HPA owns it, so a `kubectl apply` doesn't
   reset a scaled-out deployment.
 - `k8s/overlays/local`: Postgres StatefulSet + PVC (`local/ecom-db` image with init.sql), Secret
-  generated from `db.env` (git-ignored), HPA max 4, images `local/ecom-*:dev` imported into k3d.
+  `db-credentials` created by `local-k8s-up.sh` from `docker/.env` (so CI re-deploys never change it), HPA max 4, images `local/ecom-*:dev` imported into k3d.
 - `k8s/overlays/aws`: base + Docker Hub images (tags set by Jenkins). The `db` ExternalName Service,
   the `db-credentials` Secret and the `shop-env` ConfigMap are created by Ansible from Terraform outputs.
 - Scripts: `scripts/local-k8s-up.sh` (create cluster, build, import, deploy), `scripts/hpa-demo.sh`
@@ -93,3 +93,24 @@ Each part is built on its own branch (`feat/part-N-...`) and merged to `main` th
   `generate.py` and loaded from ConfigMaps labelled `grafana_dashboard: "1"`.
 - Scripts: `monitoring/install.sh`, `monitoring/port-forward.sh`, `monitoring/alert-demo.sh`
   (ERROR_RATE=0.3 on payment -> alert Pending -> Firing, restored on exit).
+
+## Part 5 - Jenkins CI/CD
+
+- `jenkins/Dockerfile`: Jenkins LTS (JDK 21) + docker CLI/compose/buildx, kubectl, kustomize, helm,
+  terraform (latest), aws cli v2, ansible (venv, + kubernetes.core), hey, hadolint; plugins from
+  `plugins.txt`; setup wizard off; Configuration as Code from `jenkins/casc/`.
+- `jenkins/casc/jenkins.yaml`: admin user, executors, credentials `dockerhub`, `aws-creds`,
+  `db-password` from environment variables (`jenkins/.env`, git-ignored; see `.env.example`).
+- `jenkins/casc/jobs.yaml`: Job DSL for `shop-pipeline` (poll SCM every 2 min), `shop-rollback`,
+  `infra-apply`, `infra-destroy` (nightly 23:00 Africa/Cairo).
+- `jenkins/run-jenkins.sh`: builds the image, runs it on the `k3d-shop` network with the Docker socket,
+  copies a kubeconfig for the local cluster (server `k3d-shop-serverlb:6443`) into
+  `jenkins_home/kube/local.yaml`. The AWS kubeconfig is written to `kube/aws.yaml` by Ansible.
+- `jenkins/Jenkinsfile` stages: Checkout (tag = 8-char Git SHA) -> Lint (hadolint, config sync,
+  kustomize build, py_compile) -> Build (compose build, images `docker.io/<user>/ecom-*:<sha>`) -> Test
+  (compose smoke test) -> Push -> Deploy (`kustomize edit set image`, `kubectl apply -k`) -> Verify
+  (rollout status + `jenkins/scripts/smoke-test.sh` through Nginx).
+- Deviation from the plan: kubeconfigs are files in the Jenkins volume instead of credentials, because
+  the AWS server IP changes on every apply.
+- The local DB secret is now created by `local-k8s-up.sh` instead of kustomize, so a Jenkins deploy can
+  never change the password Postgres was initialised with.

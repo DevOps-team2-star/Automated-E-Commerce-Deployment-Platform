@@ -1,0 +1,50 @@
+# Jenkins Configuration as Code: admin user, executors, credentials.
+# Values come from environment variables passed by jenkins/run-jenkins.sh (from jenkins/.env).
+jenkins:
+  systemMessage: "DevOps Team 2 - Automated E-Commerce Deployment Platform"
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: REPO_URL
+            value: "${REPO_URL}"
+          - key: AWS_DEFAULT_REGION
+            value: "${AWS_REGION:-eu-central-1}"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: dockerhub
+              description: Docker Hub user + access token
+              username: "${DOCKERHUB_USER:-not-set}"
+              password: "${DOCKERHUB_TOKEN:-not-set}"
+          - usernamePassword:
+              scope: GLOBAL
+              id: aws-creds
+              description: AWS access key id (username) + secret access key (password)
+              username: "${AWS_ACCESS_KEY_ID:-not-set}"
+              password: "${AWS_SECRET_ACCESS_KEY:-not-set}"
+          - string:
+              scope: GLOBAL
+              id: db-password
+              description: Password for RDS PostgreSQL (AWS)
+              secret: "${DB_PASSWORD:-not-set}"
+
+unclassified:
+  location:
+    url: "http://localhost:8090/"
+  timestamper:
+    allPipelines: true

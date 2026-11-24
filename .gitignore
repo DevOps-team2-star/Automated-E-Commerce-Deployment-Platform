@@ -27,4 +27,4 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
-k8s/overlays/local/db.env
+jenkins/.env

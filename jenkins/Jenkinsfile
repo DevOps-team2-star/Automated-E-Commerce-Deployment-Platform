@@ -1,0 +1,112 @@
+// shop-pipeline: CI/CD for web, search and payment (deliverable 2).
+// Build once (images tagged with the Git SHA), test, push, deploy to the chosen cluster, verify.
+pipeline {
+  agent any
+
+  parameters {
+    choice(name: 'TARGET_ENV', choices: ['local', 'aws'], description: 'Cluster to deploy to')
+    booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip the docker compose smoke test')
+  }
+
+  triggers { pollSCM('H/2 * * * *') }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    timeout(time: 40, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  environment {
+    DOCKERHUB  = credentials('dockerhub')          // exposes DOCKERHUB_USR and DOCKERHUB_PSW
+    SERVICES   = 'web search payment'
+    KUBECONFIG = "${env.JENKINS_HOME}/kube/${params.TARGET_ENV ?: 'local'}.yaml"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_SHA  = sh(returnStdout: true, script: 'git rev-parse --short=8 HEAD').trim()
+          env.REGISTRY = "docker.io/${env.DOCKERHUB_USR}"
+          env.TAG      = env.GIT_SHA
+          env.TARGET   = params.TARGET_ENV ?: 'local'
+          currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.GIT_SHA} -> ${env.TARGET}"
+        }
+      }
+    }
+
+    stage('Lint') {
+      steps {
+        sh '''
+          hadolint app/web/Dockerfile app/search/Dockerfile app/payment/Dockerfile app/db/Dockerfile nginx/Dockerfile
+          ./scripts/check-sync.sh
+          for o in local aws; do kustomize build k8s/overlays/$o > /dev/null && echo "kustomize $o OK"; done
+          python3 -m py_compile app/web/app.py app/search/app.py app/payment/app.py
+        '''
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh '''
+          [ -f docker/.env ] || cp docker/.env.example docker/.env
+          docker compose -f docker/docker-compose.yml --env-file docker/.env build db web search payment nginx
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep "$REGISTRY/ecom-.*:$TAG"
+        '''
+      }
+    }
+
+    stage('Test') {
+      when { expression { !params.SKIP_TESTS } }
+      steps {
+        sh './scripts/compose-smoke-test.sh'
+      }
+    }
+
+    stage('Push') {
+      steps {
+        sh '''
+          echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin
+          for s in db $SERVICES; do docker push "$REGISTRY/ecom-$s:$TAG"; done
+        '''
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        dir("k8s/overlays/${env.TARGET}") {
+          sh '''
+            for s in $SERVICES; do kustomize edit set image "ecom-$s=$REGISTRY/ecom-$s:$TAG"; done
+            if [ "$TARGET" = "aws" ]; then kustomize edit set image "ecom-db=$REGISTRY/ecom-db:$TAG"; fi
+            git --no-pager diff --stat . || true
+          '''
+        }
+        sh '''
+          kubectl version --request-timeout=10s >/dev/null
+          if [ "$TARGET" = "aws" ]; then kubectl -n shop delete job db-init --ignore-not-found; fi
+          kubectl apply -k "k8s/overlays/$TARGET"
+        '''
+        script { env.DEPLOYED = 'true' }
+      }
+    }
+
+    stage('Verify') {
+      steps {
+        script {
+          env.SHOP_URL = env.TARGET == 'aws' ? readFile("${env.JENKINS_HOME}/aws/shop_url").trim() : 'http://k3d-shop-serverlb'
+        }
+        sh '''
+          for d in $SERVICES nginx; do kubectl -n shop rollout status "deploy/$d" --timeout=150s; done
+          ./jenkins/scripts/smoke-test.sh "$SHOP_URL"
+        '''
+      }
+    }
+  }
+
+  post {
+    success { echo "Deployed ${env.GIT_SHA} to ${env.TARGET}: ${env.SHOP_URL}" }
+    always  { sh 'docker logout >/dev/null 2>&1 || true' }
+  }
+}

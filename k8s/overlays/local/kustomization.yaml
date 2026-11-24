@@ -4,9 +4,9 @@ namespace: shop
 resources:
   - ../../base
   - postgres.yaml
-secretGenerator:
-  - name: db-credentials
-    envs: [db.env]            # created from db.env.example by scripts/local-k8s-up.sh (git-ignored)
+# Secret `db-credentials` is created by scripts/local-k8s-up.sh (from docker/.env), not here, so that
+# Jenkins re-deploys never change the password Postgres was initialised with. Same pattern as AWS,
+# where Ansible creates it.
 patches:
   - path: hpa-patch.yaml
     target: { kind: HorizontalPodAutoscaler }
