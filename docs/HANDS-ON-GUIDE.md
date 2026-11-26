@@ -142,14 +142,19 @@ bash scripts/nginx-demo.sh
 
 ## Part 3 — Kubernetes (k3d cluster "shop" + local registry)
 
-**Status: 🟡 built (from earlier work) — needs your manual test**
+**Status: 🟡 cluster already running (46h old, from earlier work) — port was fixed after a clash, needs re-test**
 
 - Infographic: shown in chat ✅
 - Manual test steps: below ✅
 - Code review: [`docs/explain/part-3.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-3.md) ✅
 
-> ⚠️ This uses `http://localhost:8080` — the same port Jenkins uses later (Part 5). We'll remap one
-> of them when we get to Jenkins; not a problem yet.
+> ⚠️ **Port fix (2026-11-26):** the cluster originally used `localhost:8080`, but Kareem has an
+> unrelated, pre-existing Jenkins already running on that exact port on his machine (not ours —
+> seen at `http://localhost:8080` showing a vanilla "Welcome to Jenkins!" with no jobs, nothing to
+> do with this project). That's why `curl .../api/search/products | jq` failed with a JSON parse
+> error — the request was actually hitting that other Jenkins' HTML page, not our cluster.
+> `scripts/local-k8s-up.sh` now defaults to **`localhost:8888`** instead (override with `LB_PORT=`).
+> The cluster has to be recreated once to pick up the new port — see test steps below.
 
 ### Code on GitHub
 - [`scripts/local-k8s-up.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/scripts/local-k8s-up.sh) — creates the cluster, builds/imports images, deploys
@@ -158,21 +163,25 @@ bash scripts/nginx-demo.sh
 - [`k8s/overlays/local/`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/tree/main/k8s/overlays/local) — the local-only Postgres + smaller HPA caps
 
 ### How to test it yourself
+The existing cluster was created with the old port, so delete it once and recreate on the new port
+(this only removes the local k3d cluster container, not your code or images):
 ```bash
 cd ~/automated-e-commerce-deployment-platform
+git pull
+k3d cluster delete shop
 docker compose -f docker/docker-compose.yml down   # free up the images/ports first
 bash scripts/local-k8s-up.sh
 ```
-Takes a few minutes the first run. Then:
+Takes a few minutes. Then:
 ```bash
 kubectl -n shop get pods,svc,hpa
-curl -s http://localhost:8080/api/search/products | jq length
+curl -s http://localhost:8888/api/search/products | jq length
 ```
-Open `http://localhost:8080` in your browser.
+Open `http://localhost:8888` in your browser — note the new port, not 8080.
 
 ### Acceptance criteria
 - [ ] `kubectl -n shop get pods` shows all pods `Running` / `1/1` or `2/2` Ready
-- [ ] `http://localhost:8080` shows the same storefront
+- [ ] `http://localhost:8888` shows the same storefront
 - [ ] `jq length` prints `12`
 
 **→ Paste the output here.**
@@ -182,7 +191,9 @@ Open `http://localhost:8080` in your browser.
 
 ## Part 5 — Jenkins (CI/CD)
 **Status: ⬜ not started**
-> Note: Jenkins' own web UI normally lives at **http://localhost:8080** (that is a Jenkins URL like `/view/all/`, not part of our shop app). We have not started Jenkins yet, so nothing is there right now — that's expected, not a bug.
+> Note: *our* Jenkins will run on **http://localhost:8090** (`jenkins/run-jenkins.sh`), chosen
+> specifically to avoid the unrelated Jenkins already on Kareem's machine at `localhost:8080`
+> (see the Part 3 port-fix note above) and the shop's own `localhost:8888` (Part 3).
 
 ## Part 6 — Automated rollback
 **Status: ⬜ not started**

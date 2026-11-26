@@ -247,3 +247,14 @@ container IPs (uneven split 25/4/3 — nginx had just restarted and hadn't fully
 acceptable for the demo since traffic did reach more than one IP), rate limit on /api/payment/
 rejected 38/60 requests with HTTP 429 as expected. Added docs/explain/part-3.md ahead of the
 Kubernetes test.
+
+## Port 8080 clash fixed (2026-11-26)
+
+Kareem's manual test of Part 3 showed `kubectl get pods/svc/hpa` all healthy, but
+`curl http://localhost:8080/.../products | jq length` failed with a JSON parse error. Root cause:
+an unrelated, pre-existing Jenkins (not ours — ours is Part 5, runs on 8090) is already bound to
+localhost:8080 on his machine, so the curl was actually hitting that Jenkins' HTML welcome page,
+not the k3d load balancer. Asked Kareem how to handle it; he chose to move our cluster instead of
+touching his other Jenkins. `scripts/local-k8s-up.sh` now takes `LB_PORT` (default 8888, was 8080)
+for the k3d loadbalancer port mapping. Existing `shop` cluster needs `k3d cluster delete shop` once
+to pick up the new port, then a normal `local-k8s-up.sh` re-run.

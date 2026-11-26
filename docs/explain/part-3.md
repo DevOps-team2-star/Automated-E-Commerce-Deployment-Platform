@@ -20,11 +20,12 @@ Step by step:
 2. Creates the k3d cluster named `shop`: 1 server node + 2 agent nodes (all Docker containers
    acting as "fake machines"), with Traefik disabled (`--disable=traefik` — that's k3s's built-in
    ingress controller; we use our own nginx instead, see `CLAUDE.md`'s deviation note about
-   ingress-nginx's retirement), and port 8080 on your laptop mapped to port 80 on the cluster's
-   load balancer (`-p "8080:80@loadbalancer"`).
-   > ⚠️ Heads up: this means once Part 3 is up, the shop will be reachable at
-   > **`http://localhost:8080`** — the same port Jenkins normally uses (Part 5). We'll need to move
-   > one of them to a different port once we get there; noting it now so it's not a surprise later.
+   ingress-nginx's retirement), and port `${LB_PORT:-8888}` on your laptop mapped to port 80 on the
+   cluster's load balancer (`-p "${LB_PORT}:80@loadbalancer"`).
+   > ⚠️ Originally this used port 8080, but Kareem already has an unrelated Jenkins instance
+   > running on `localhost:8080` on his machine (not ours — our own Jenkins in Part 5 uses 8090,
+   > see `jenkins/run-jenkins.sh`). To avoid any clash with it, the cluster's load balancer now
+   > defaults to **8888** (override with `LB_PORT=<port> ./scripts/local-k8s-up.sh`).
 3. Rebuilds the same Part 1 Docker images, then `k3d image import`s them straight into the
    cluster's containerd — no registry push/pull needed for local work.
 4. Creates the `shop` namespace and a `db-credentials` Secret holding the Postgres password (read
@@ -76,9 +77,9 @@ bash scripts/local-k8s-up.sh
 Takes a few minutes the first time (downloading the k3s images). At the end:
 ```bash
 kubectl -n shop get pods,svc,hpa
-curl -s http://localhost:8080/api/search/products | jq length   # should print 12
+curl -s http://localhost:8888/api/search/products | jq length   # should print 12
 ```
-Then open `http://localhost:8080` in a browser — same storefront, now running on Kubernetes.
+Then open `http://localhost:8888` in a browser — same storefront, now running on Kubernetes.
 
 ## 5 questions an instructor might ask
 
