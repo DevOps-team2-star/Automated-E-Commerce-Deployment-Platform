@@ -272,3 +272,11 @@ kube-prometheus-stack installed clean via monitoring/install.sh, Grafana passwor
 printed. Confirmed in Grafana UI: "Shop - Golden Signals" and "Shop - Scaling" dashboards both
 present (alongside the stock kubernetes-mixin/node-exporter dashboards). Confirmed in Prometheus
 /targets: all scrape targets UP. Added docs/explain/part-5.md ahead of testing Jenkins.
+
+## Part 5 confirmed on Kareem's PC (2026-11-26)
+
+Jenkins container started clean on localhost:8090. shop-pipeline builds #1 and #2 both completed
+all 7 stages green (Checkout, Lint, Build, Test, Push, Deploy, Verify ~2min each). Confirms the
+full CI/CD loop works end to end against the local k3d cluster. Added docs/explain/part-6.md ahead
+of the rollback demo; also fixed scripts/rollback-demo.sh's default URL from the old
+http://localhost:8080 to http://localhost:8888 to match Part 3's LB_PORT fix.
