@@ -142,7 +142,7 @@ bash scripts/nginx-demo.sh
 
 ## Part 3 — Kubernetes (k3d cluster "shop" + local registry)
 
-**Status: 🟡 cluster already running (46h old, from earlier work) — port was fixed after a clash, needs re-test**
+**Status: ✅ confirmed 2026-11-26 — storefront loaded on `http://localhost:8888` (running from Kubernetes, "version dev" shown top-right)**
 
 - Infographic: shown in chat ✅
 - Manual test steps: below ✅
@@ -187,7 +187,38 @@ Open `http://localhost:8888` in your browser — note the new port, not 8080.
 **→ Paste the output here.**
 
 ## Part 4 — Monitoring (Prometheus + Grafana)
-**Status: ⬜ not started**
+
+**Status: 🟡 built (from earlier work) — needs your manual test**
+
+- Infographic: shown in chat ✅
+- Manual test steps: below ✅
+- Code review: [`docs/explain/part-4.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-4.md) ✅
+
+### Code on GitHub
+- [`monitoring/install.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/monitoring/install.sh) — installs kube-prometheus-stack via Helm + our own config
+- [`monitoring/servicemonitor-shop.yaml`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/monitoring/servicemonitor-shop.yaml) — tells Prometheus what to scrape
+- [`monitoring/alerts-shop.yaml`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/monitoring/alerts-shop.yaml) — the 4 alert rules
+- [`monitoring/dashboards/generate.py`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/monitoring/dashboards/generate.py) — generates the Grafana dashboards
+
+### How to test it yourself
+```bash
+cd ~/automated-e-commerce-deployment-platform
+bash monitoring/install.sh
+```
+Takes several minutes (downloads Prometheus/Grafana images). Note the Grafana password it prints.
+Then:
+```bash
+bash monitoring/port-forward.sh
+```
+Open `http://localhost:3000` (Grafana, login `admin` + the printed password) and
+`http://localhost:9090` (Prometheus — try the query `up{namespace="shop"}`).
+
+### Acceptance criteria
+- [ ] Grafana loads and you can log in
+- [ ] A "shop" dashboard exists in Grafana with live graphs (not empty panels)
+- [ ] Prometheus `http://localhost:9090/targets` shows the shop services as `UP`
+
+**→ Paste what you see / a screenshot.**
 
 ## Part 5 — Jenkins (CI/CD)
 **Status: ⬜ not started**
