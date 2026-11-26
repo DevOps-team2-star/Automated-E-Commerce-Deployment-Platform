@@ -258,3 +258,10 @@ not the k3d load balancer. Asked Kareem how to handle it; he chose to move our c
 touching his other Jenkins. `scripts/local-k8s-up.sh` now takes `LB_PORT` (default 8888, was 8080)
 for the k3d loadbalancer port mapping. Existing `shop` cluster needs `k3d cluster delete shop` once
 to pick up the new port, then a normal `local-k8s-up.sh` re-run.
+
+## Part 3 confirmed on Kareem's PC (2026-11-26)
+
+After the LB_PORT fix, storefront loaded successfully on http://localhost:8888, running from the
+k3d Kubernetes cluster (confirmed by the "version dev" badge from APP_VERSION, visible only when
+served via the K8s Deployment's build arg). All 12 products visible, UI consistent with Parts 1-2.
+Added docs/explain/part-4.md ahead of testing monitoring.
