@@ -5,11 +5,13 @@ For every part the pattern is always the same:
 
 1. **I build it** (code, scripts, configs) and push it to GitHub.
 2. **I test it myself** (automated: curl, kubectl, scripts) and paste the evidence here.
-3. **You test it manually** on your own PC, following the exact steps I give you.
+3. **You test it manually** on your own PC, following the exact steps I give you — **with a direct GitHub link to every file involved**, so you can open and read the real code while you test it, not just trust that it works.
 4. **You confirm** ("✅ works" or "❌ problem: ...") in chat.
 5. Only after your confirmation do we move to the next part.
 
 No part is marked DONE until step 4 happens. Coded ≠ Done.
+
+Repo: https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform (branch `main` unless noted)
 
 Legend: ⬜ not started · 🟡 built, waiting for your manual test · ✅ confirmed by you
 
@@ -23,6 +25,12 @@ Legend: ⬜ not started · 🟡 built, waiting for your manual test · ✅ confi
 - `scripts/install-tools.sh` — installs docker, kubectl, k3d, helm, kustomize, terraform, ansible, aws-cli, hey, hadolint inside WSL2 Ubuntu
 - `scripts/check-tools.sh` — prints the version of every tool so we can see what's installed
 - The GitHub repo itself, with branches per part
+
+### Code on GitHub (open these while you test)
+- [`scripts/install-tools.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/scripts/install-tools.sh) — read top to bottom: it's one `apt`/official-installer line per tool, each wrapped so one failure (like `hey`) doesn't stop the rest
+- [`scripts/check-tools.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/scripts/check-tools.sh) — just runs `<tool> --version` for every tool in a loop
+- [`CLAUDE.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/CLAUDE.md) — the project's fixed decisions (machine, cluster name, safety rules) — worth skimming once
+- [Commit that fixed the `hey` install (PR #12)](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/pull/12/files) — real example of a bug you hit and how it got fixed
 
 ### How to test it yourself (5 min)
 Open your WSL2 Ubuntu terminal in the project folder and run:
@@ -52,6 +60,13 @@ bash scripts/check-tools.sh
 - `app/web`, `app/search`, `app/payment` — the 3 Flask services (Dockerfile each, non-root, healthcheck)
 - `app/db` — Postgres 16 with seed data (12 demo products) baked in
 - `docker/docker-compose.yml` — runs all of them together on your machine
+
+### Code on GitHub (open these while you test)
+- [`docker/docker-compose.yml`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docker/docker-compose.yml) — the file that defines all 5 containers (db, search, payment, web, nginx) and how they talk to each other
+- [`app/web/Dockerfile`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/app/web/Dockerfile) / [`app/search/Dockerfile`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/app/search/Dockerfile) / [`app/payment/Dockerfile`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/app/payment/Dockerfile) — each builds a small non-root image; compare them, they're nearly identical
+- [`app/web/app.py`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/app/web/app.py) — the actual Flask code serving the storefront (provided app code, not something I wrote — see `CLAUDE.md`)
+- [`app/db/init.sql`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/app/db/init.sql) — the schema + the 12 seed products you'll see in the browser
+- [`scripts/compose-smoke-test.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/scripts/compose-smoke-test.sh) — the exact script that already passed 7/7 on your PC; read it to see what "passed" actually checked
 
 ### What I already tested (automated)
 You ran `scripts/compose-smoke-test.sh` and it printed **7/7 checks PASSED**, including a real purchase (`order_id=1`, `$79.90`) and a declined test card (`402`).
@@ -87,6 +102,9 @@ To stop everything: `docker compose -f docker/docker-compose.yml down`
 
 ### What will be built (next)
 - `scripts/nginx-demo.sh` — shows the routing table, load-balances across 3 copies of the search service, and demonstrates the payment endpoint rejecting too-many-requests (HTTP 429)
+
+### Code on GitHub
+- Will be linked here once built: `nginx/default.conf`, `nginx/Dockerfile`, `scripts/nginx-demo.sh` (every part from now on gets real GitHub links added here, not just file names)
 
 ### How you'll test it
 Script output pasted here, plus I'll ask you to refresh `http://localhost/api/search/products` a few times and watch different container names answer in the logs.
