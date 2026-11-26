@@ -65,10 +65,10 @@ bash scripts/check-tools.sh
 
 ## Part 1 — Docker: build the 4 services + database
 
-**Status: 🟡 built + auto-verified by me (compose-smoke-test.sh passed on your PC) — needs YOUR eyes on it in a browser**
+**Status: ✅ confirmed 2026-11-26 — storefront loaded on `http://localhost:8081`, real purchase succeeded (Order 7, $79.90) — needed `NGINX_PORT=8081` since port 80 was taken on Windows**
 
 - Infographic: shown in chat ✅
-- Manual test steps: below ✅
+- Manual test steps: above ✅
 - Code review: [`docs/explain/part-1.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-1.md) ✅
 
 ### What was built
@@ -113,18 +113,30 @@ To stop everything: `docker compose -f docker/docker-compose.yml down`
 
 ## Part 2 — Nginx: one entry point, load balancing, rate limiting
 
-**Status: ⬜ waiting for Part 1 confirmation first**
+**Status: 🟡 built + already running (same nginx container since Part 1) — needs the demo script run**
 
-### What will be built (next)
-- `scripts/nginx-demo.sh` — shows the routing table, load-balances across 3 copies of the search service, and demonstrates the payment endpoint rejecting too-many-requests (HTTP 429)
+- Infographic: shown in chat ✅
+- Manual test steps: below ✅
+- Code review: [`docs/explain/part-2.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-2.md) ✅
 
 ### Code on GitHub
-- Will be linked here once built: `nginx/default.conf`, `nginx/Dockerfile`, `scripts/nginx-demo.sh` (every part from now on gets real GitHub links added here, not just file names)
+- [`nginx/default.conf`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/nginx/default.conf) — routing rules, rate limit, health/status endpoints
+- [`scripts/nginx-demo.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/scripts/nginx-demo.sh) — the 3-part demo (routing, load balancing, rate limit)
 
-### How you'll test it
-Script output pasted here, plus I'll ask you to refresh `http://localhost/api/search/products` a few times and watch different container names answer in the logs.
+### How to test it yourself
+Your stack from Part 1 is already running on port 8081:
+```bash
+cd ~/automated-e-commerce-deployment-platform
+export NGINX_PORT=8081
+bash scripts/nginx-demo.sh
+```
 
-**→ Not ready to test yet. Confirm Part 1 first.**
+### Acceptance criteria
+- [ ] Routing section: every path returns HTTP 200 (except maybe one 404, that's fine)
+- [ ] Load balancing section: the `upstream=` counts are spread across more than one IP, not all on one
+- [ ] Rate limit section: you see a mix of HTTP 200 and HTTP 429 in the 60-request burst
+
+**→ Paste the full output here.**
 
 ---
 
