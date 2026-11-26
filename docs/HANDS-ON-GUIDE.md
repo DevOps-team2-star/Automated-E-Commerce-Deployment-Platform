@@ -188,10 +188,10 @@ Open `http://localhost:8888` in your browser — note the new port, not 8080.
 
 ## Part 4 — Monitoring (Prometheus + Grafana)
 
-**Status: 🟡 built (from earlier work) — needs your manual test**
+**Status: ✅ confirmed 2026-11-26 — Grafana shows "Shop - Golden Signals" and "Shop - Scaling" dashboards, Prometheus `/targets` shows all services UP**
 
 - Infographic: shown in chat ✅
-- Manual test steps: below ✅
+- Manual test steps: above ✅
 - Code review: [`docs/explain/part-4.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-4.md) ✅
 
 ### Code on GitHub
@@ -221,10 +221,40 @@ Open `http://localhost:3000` (Grafana, login `admin` + the printed password) and
 **→ Paste what you see / a screenshot.**
 
 ## Part 5 — Jenkins (CI/CD)
-**Status: ⬜ not started**
-> Note: *our* Jenkins will run on **http://localhost:8090** (`jenkins/run-jenkins.sh`), chosen
+
+**Status: 🟡 built (from earlier work) — needs your manual test**
+
+- Infographic: shown in chat ✅
+- Manual test steps: below ✅
+- Code review: [`docs/explain/part-5.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-5.md) ✅
+
+> Note: *our* Jenkins runs on **http://localhost:8090** (`jenkins/run-jenkins.sh`), chosen
 > specifically to avoid the unrelated Jenkins already on Kareem's machine at `localhost:8080`
-> (see the Part 3 port-fix note above) and the shop's own `localhost:8888` (Part 3).
+> (Part 3 port-fix note) and the shop's own `localhost:8888` (Part 3).
+
+### Code on GitHub
+- [`jenkins/run-jenkins.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/jenkins/run-jenkins.sh) — builds and starts the Jenkins container
+- [`jenkins/Jenkinsfile`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/jenkins/Jenkinsfile) — the main `shop-pipeline` (Checkout → Lint → Build → Test → Push → Deploy → Verify)
+- [`jenkins/Dockerfile`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/jenkins/Dockerfile) — the Jenkins image with every CLI tool baked in
+- [`jenkins/casc/jobs.yaml`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/jenkins/casc/jobs.yaml) — defines the 4 pipeline jobs automatically on startup
+
+### How to test it yourself
+```bash
+cd ~/automated-e-commerce-deployment-platform
+cp jenkins/.env.example jenkins/.env
+# edit jenkins/.env: set JENKINS_ADMIN_PASSWORD to something you'll remember
+bash jenkins/run-jenkins.sh
+```
+Open `http://localhost:8090`, log in with `admin` + the password you set, open the `shop-pipeline`
+job, click **Build with Parameters**, leave `TARGET_ENV=local`, click **Build**.
+
+### Acceptance criteria
+- [ ] Jenkins loads at `localhost:8090` and you can log in
+- [ ] 4 jobs exist: `shop-pipeline`, `shop-rollback`, `infra-apply`, `infra-destroy`
+- [ ] Running `shop-pipeline` (TARGET_ENV=local) goes all the way to a green "Verify" stage
+- [ ] After it finishes, `localhost:8888` still shows the storefront (it just redeployed itself)
+
+**→ Paste the build's stage view / console output.**
 
 ## Part 6 — Automated rollback
 **Status: ⬜ not started**
