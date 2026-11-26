@@ -1,0 +1,142 @@
+# Hands-On Guide — خطوة بخطوة
+
+This file is our single learning log. It starts near-empty and grows one part at a time.
+For every part the pattern is always the same:
+
+1. **I build it** (code, scripts, configs) and push it to GitHub.
+2. **I test it myself** (automated: curl, kubectl, scripts) and paste the evidence here.
+3. **You test it manually** on your own PC, following the exact steps I give you.
+4. **You confirm** ("✅ works" or "❌ problem: ...") in chat.
+5. Only after your confirmation do we move to the next part.
+
+No part is marked DONE until step 4 happens. Coded ≠ Done.
+
+Legend: ⬜ not started · 🟡 built, waiting for your manual test · ✅ confirmed by you
+
+---
+
+## Part 0 — Machine setup (WSL2, Docker, tools, Git repo)
+
+**Status: 🟡 built + auto-verified by me — needs your manual confirmation**
+
+### What was built
+- `scripts/install-tools.sh` — installs docker, kubectl, k3d, helm, kustomize, terraform, ansible, aws-cli, hey, hadolint inside WSL2 Ubuntu
+- `scripts/check-tools.sh` — prints the version of every tool so we can see what's installed
+- The GitHub repo itself, with branches per part
+
+### How to test it yourself (5 min)
+Open your WSL2 Ubuntu terminal in the project folder and run:
+```bash
+cd ~/automated-e-commerce-deployment-platform   # or wherever you cloned it
+git pull
+bash scripts/check-tools.sh
+```
+
+### Acceptance criteria
+- [ ] `docker --version` shows a version (Docker Desktop is running)
+- [ ] `kubectl version --client` shows a version
+- [ ] `k3d version` shows a version
+- [ ] `terraform version` or `tofu version` shows a version
+- [ ] `ansible --version` shows a version
+- [ ] no "command not found" errors
+
+**→ Paste the output here in chat. I will mark this ✅ once you confirm.**
+
+---
+
+## Part 1 — Docker: build the 4 services + database
+
+**Status: 🟡 built + auto-verified by me (compose-smoke-test.sh passed on your PC) — needs YOUR eyes on it in a browser**
+
+### What was built
+- `app/web`, `app/search`, `app/payment` — the 3 Flask services (Dockerfile each, non-root, healthcheck)
+- `app/db` — Postgres 16 with seed data (12 demo products) baked in
+- `docker/docker-compose.yml` — runs all of them together on your machine
+
+### What I already tested (automated)
+You ran `scripts/compose-smoke-test.sh` and it printed **7/7 checks PASSED**, including a real purchase (`order_id=1`, `$79.90`) and a declined test card (`402`).
+
+### How to test it yourself now — SEE it with your own eyes
+```bash
+cd ~/automated-e-commerce-deployment-platform
+docker compose -f docker/docker-compose.yml up -d --build
+docker compose -f docker/docker-compose.yml ps
+```
+Wait until all 4 services show "healthy", then open in your Windows browser:
+- `http://localhost` → the shop storefront (product grid)
+- `http://localhost/api/search/products` → raw JSON of products
+- `http://localhost/api/payment/orders` → raw JSON (empty list until you buy something)
+
+> If port 80 is already used on Windows, use `http://localhost:8081` instead (set `NGINX_PORT=8081` in `docker/.env` first).
+
+To stop everything: `docker compose -f docker/docker-compose.yml down`
+
+### Acceptance criteria
+- [ ] `docker compose ps` shows web, search, payment, db, nginx all "Up (healthy)"
+- [ ] `http://localhost` shows the storefront with product images and titles
+- [ ] clicking a product and buying it works, and shows a success message
+- [ ] `http://localhost/api/search/products` returns a JSON list (not an error)
+
+**→ Tell me "✅ Part 1 works" or paste what you saw instead.**
+
+---
+
+## Part 2 — Nginx: one entry point, load balancing, rate limiting
+
+**Status: ⬜ waiting for Part 1 confirmation first**
+
+### What will be built (next)
+- `scripts/nginx-demo.sh` — shows the routing table, load-balances across 3 copies of the search service, and demonstrates the payment endpoint rejecting too-many-requests (HTTP 429)
+
+### How you'll test it
+Script output pasted here, plus I'll ask you to refresh `http://localhost/api/search/products` a few times and watch different container names answer in the logs.
+
+**→ Not ready to test yet. Confirm Part 1 first.**
+
+---
+
+## Part 3 — Kubernetes (k3d cluster "shop" + local registry)
+**Status: ⬜ not started**
+
+## Part 4 — Monitoring (Prometheus + Grafana)
+**Status: ⬜ not started**
+
+## Part 5 — Jenkins (CI/CD)
+**Status: ⬜ not started**
+> Note: Jenkins' own web UI normally lives at **http://localhost:8080** (that is a Jenkins URL like `/view/all/`, not part of our shop app). We have not started Jenkins yet, so nothing is there right now — that's expected, not a bug.
+
+## Part 6 — Automated rollback
+**Status: ⬜ not started**
+
+## Part 7 — Terraform (AWS, tested on the local emulator first)
+**Status: ⬜ not started**
+
+## Part 8 — Ansible
+**Status: ⬜ not started**
+
+## Part 9 — Full demo rehearsal
+**Status: ⬜ not started**
+
+---
+
+## How parts connect (big picture)
+```
+Part 0 (WSL + tools + repo)
+   -> gives us a working machine + place to store code
+Part 1 (Docker images: web, search, payment, db)
+   -> gives us 4 runnable containers
+Part 2 (Nginx)
+   -> puts ONE door in front of those 4 containers
+Part 3 (Kubernetes)
+   -> runs the SAME containers + SAME nginx config, but managed/scaled automatically
+Part 4 (Monitoring)
+   -> watches Part 3's pods and shows graphs
+Part 5 (Jenkins)
+   -> automates "build Part 1 images -> deploy to Part 3" on every code change
+Part 6 (Rollback)
+   -> makes Part 5 undo itself automatically if a deploy breaks things
+Part 7 (Terraform) + Part 8 (Ansible)
+   -> build a REAL (or emulated) AWS version of Part 3's cluster
+Part 9 (Demo)
+   -> the 10-minute story that shows all of the above to your instructor
+```
