@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Part 3: create the local k3d cluster (if needed), build + import the images, deploy the shop.
-#   ./scripts/local-k8s-up.sh            -> shop at http://localhost:8080
+#   ./scripts/local-k8s-up.sh            -> shop at http://localhost:${LB_PORT:-8888}
+# LB_PORT defaults to 8888, not 8080, so this never collides with any other Jenkins/app you
+# already have bound to 8080 on your machine (our own Jenkins in Part 5 uses 8090 anyway).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CLUSTER=${CLUSTER:-shop}
+LB_PORT=${LB_PORT:-8888}
 
 REGISTRY_NAME=registry.localhost      # container k3d-registry.localhost, host port 5050
 if ! k3d registry list -o json | jq -e '.[] | select(.name == "k3d-registry.localhost")' >/dev/null; then
@@ -12,10 +15,10 @@ if ! k3d registry list -o json | jq -e '.[] | select(.name == "k3d-registry.loca
 fi
 
 if ! k3d cluster list -o json | jq -e --arg c "$CLUSTER" '.[] | select(.name == $c)' >/dev/null; then
-  echo "==> Creating k3d cluster '$CLUSTER' (1 server + 2 agents, Traefik off, host 8080 -> LB :80)"
+  echo "==> Creating k3d cluster '$CLUSTER' (1 server + 2 agents, Traefik off, host $LB_PORT -> LB :80)"
   k3d cluster create "$CLUSTER" --agents 2 \
     --registry-use "k3d-${REGISTRY_NAME}:5050" \
-    -p "8080:80@loadbalancer" \
+    -p "${LB_PORT}:80@loadbalancer" \
     --k3s-arg "--disable=traefik@server:0" \
     --k3s-arg "--tls-san=k3d-${CLUSTER}-serverlb@server:0" \
     --wait
@@ -44,5 +47,5 @@ for d in search payment web nginx; do kubectl -n shop rollout status deploy/$d -
 
 kubectl -n shop get pods,svc,hpa
 echo
-echo "Shop:  http://localhost:8080"
-echo "Check: curl -s http://localhost:8080/api/search/products | jq length"
+echo "Shop:  http://localhost:${LB_PORT}"
+echo "Check: curl -s http://localhost:${LB_PORT}/api/search/products | jq length"
