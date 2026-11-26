@@ -232,3 +232,10 @@ Run it:
 docker 29.7.2, compose 5.5.0, git 2.53.0, kubectl 1.36.1, k3d 5.9.0, helm 3.22.1, kustomize 5.8.3,
 terraform 1.17.2, ansible core 2.22.0, aws-cli 2.42.2, jq 1.8.1, hey, hadolint 2.15.1 — all OK.
 Part 0 marked ✅ in docs/HANDS-ON-GUIDE.md. Added docs/explain/part-1.md (Docker Compose stack explained).
+
+## Part 1 confirmed on Kareem's PC (2026-11-26)
+
+Full compose stack built and ran: db/search/payment/web all healthy, nginx needed NGINX_PORT=8081
+(port 80 taken on Windows by something else). Storefront loaded with all 12 seed products, a real
+purchase succeeded (Order 7 paid, $79.90). Added docs/explain/part-2.md ahead of running the
+nginx demo.
