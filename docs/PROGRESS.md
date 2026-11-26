@@ -239,3 +239,11 @@ Full compose stack built and ran: db/search/payment/web all healthy, nginx neede
 (port 80 taken on Windows by something else). Storefront loaded with all 12 seed products, a real
 purchase succeeded (Order 7 paid, $79.90). Added docs/explain/part-2.md ahead of running the
 nginx demo.
+
+## Part 2 confirmed on Kareem's PC (2026-11-26)
+
+nginx-demo.sh ran clean: all routing checks HTTP 200, load balancing spread across 3 search
+container IPs (uneven split 25/4/3 — nginx had just restarted and hadn't fully load-balanced yet,
+acceptable for the demo since traffic did reach more than one IP), rate limit on /api/payment/
+rejected 38/60 requests with HTTP 429 as expected. Added docs/explain/part-3.md ahead of the
+Kubernetes test.

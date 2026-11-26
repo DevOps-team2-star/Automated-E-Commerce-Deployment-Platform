@@ -113,7 +113,7 @@ To stop everything: `docker compose -f docker/docker-compose.yml down`
 
 ## Part 2 — Nginx: one entry point, load balancing, rate limiting
 
-**Status: 🟡 built + already running (same nginx container since Part 1) — needs the demo script run**
+**Status: ✅ confirmed 2026-11-26 — routing all 200s, load balanced across 3 search IPs (25/4/3 split), rate limit rejected 38/60 with HTTP 429**
 
 - Infographic: shown in chat ✅
 - Manual test steps: below ✅
@@ -141,7 +141,41 @@ bash scripts/nginx-demo.sh
 ---
 
 ## Part 3 — Kubernetes (k3d cluster "shop" + local registry)
-**Status: ⬜ not started**
+
+**Status: 🟡 built (from earlier work) — needs your manual test**
+
+- Infographic: shown in chat ✅
+- Manual test steps: below ✅
+- Code review: [`docs/explain/part-3.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-3.md) ✅
+
+> ⚠️ This uses `http://localhost:8080` — the same port Jenkins uses later (Part 5). We'll remap one
+> of them when we get to Jenkins; not a problem yet.
+
+### Code on GitHub
+- [`scripts/local-k8s-up.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/scripts/local-k8s-up.sh) — creates the cluster, builds/imports images, deploys
+- [`k8s/base/web.yaml`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/k8s/base/web.yaml) — Deployment + Service pattern (same shape for search/payment)
+- [`k8s/base/hpa.yaml`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/k8s/base/hpa.yaml) — the auto-scaling rules
+- [`k8s/overlays/local/`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/tree/main/k8s/overlays/local) — the local-only Postgres + smaller HPA caps
+
+### How to test it yourself
+```bash
+cd ~/automated-e-commerce-deployment-platform
+docker compose -f docker/docker-compose.yml down   # free up the images/ports first
+bash scripts/local-k8s-up.sh
+```
+Takes a few minutes the first run. Then:
+```bash
+kubectl -n shop get pods,svc,hpa
+curl -s http://localhost:8080/api/search/products | jq length
+```
+Open `http://localhost:8080` in your browser.
+
+### Acceptance criteria
+- [ ] `kubectl -n shop get pods` shows all pods `Running` / `1/1` or `2/2` Ready
+- [ ] `http://localhost:8080` shows the same storefront
+- [ ] `jq length` prints `12`
+
+**→ Paste the output here.**
 
 ## Part 4 — Monitoring (Prometheus + Grafana)
 **Status: ⬜ not started**
