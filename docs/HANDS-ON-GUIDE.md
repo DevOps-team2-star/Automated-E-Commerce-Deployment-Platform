@@ -26,7 +26,7 @@ Legend: ⬜ not started · 🟡 built, waiting for your manual test · ✅ confi
 
 ## Part 0 — Machine setup (WSL2, Docker, tools, Git repo)
 
-**Status: 🟡 built + auto-verified by me — needs your manual confirmation**
+**Status: ✅ confirmed 2026-11-26 — all tools OK on Kareem's PC (docker 29.7.2, kubectl 1.36.1, k3d 5.9.0, helm 3.22.1, kustomize 5.8.3, terraform 1.17.2, ansible core 2.22.0, aws-cli 2.42.2, hey, hadolint)**
 
 - Infographic: shown in chat ✅
 - Manual test steps: below ✅
@@ -66,6 +66,10 @@ bash scripts/check-tools.sh
 ## Part 1 — Docker: build the 4 services + database
 
 **Status: 🟡 built + auto-verified by me (compose-smoke-test.sh passed on your PC) — needs YOUR eyes on it in a browser**
+
+- Infographic: shown in chat ✅
+- Manual test steps: below ✅
+- Code review: [`docs/explain/part-1.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-1.md) ✅
 
 ### What was built
 - `app/web`, `app/search`, `app/payment` — the 3 Flask services (Dockerfile each, non-root, healthcheck)

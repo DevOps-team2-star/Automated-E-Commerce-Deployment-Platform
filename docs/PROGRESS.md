@@ -225,3 +225,10 @@ Run it:
   image), and the optional tools (`hey`, `hadolint`) print a warning instead of aborting the script.
 - Installed on that run: jq, pipx, unzip, k3d, helm 3.22.1, kustomize 5.8.3, terraform 1.17.2,
   ansible 15.0.0 (+ kubernetes lib), aws cli v2. kubectl was already present.
+
+## Part 0 confirmed on Kareem's PC (2026-11-26)
+
+`scripts/check-tools.sh` ran clean after a fresh `git clone` into `~/automated-e-commerce-deployment-platform`:
+docker 29.7.2, compose 5.5.0, git 2.53.0, kubectl 1.36.1, k3d 5.9.0, helm 3.22.1, kustomize 5.8.3,
+terraform 1.17.2, ansible core 2.22.0, aws-cli 2.42.2, jq 1.8.1, hey, hadolint 2.15.1 — all OK.
+Part 0 marked ✅ in docs/HANDS-ON-GUIDE.md. Added docs/explain/part-1.md (Docker Compose stack explained).
