@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Part 6 demo without Jenkins: a bad web release (readiness always fails) is held back by the rolling
 # update while traffic keeps flowing with no errors, then it is rolled back.
-#   ./scripts/rollback-demo.sh [shop-url]    default http://localhost:8080
+#   ./scripts/rollback-demo.sh [shop-url]    default http://localhost:8888 (k3d loadbalancer, see LB_PORT in local-k8s-up.sh)
 set -euo pipefail
-URL=${1:-http://localhost:8080}
+URL=${1:-http://localhost:8888}
 echo "==> Current web revision"; kubectl -n shop rollout history deploy/web | tail -n 3
 echo "==> Background traffic for 150s"
 hey -z 150s -c 10 "$URL/" > /tmp/hey-rollback.txt &

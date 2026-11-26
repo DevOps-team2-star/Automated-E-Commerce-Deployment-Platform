@@ -222,10 +222,10 @@ Open `http://localhost:3000` (Grafana, login `admin` + the printed password) and
 
 ## Part 5 — Jenkins (CI/CD)
 
-**Status: 🟡 built (from earlier work) — needs your manual test**
+**Status: ✅ confirmed 2026-11-26 — builds #1 and #2 of `shop-pipeline` both went fully green (all 7 stages, Verify ~2min)**
 
 - Infographic: shown in chat ✅
-- Manual test steps: below ✅
+- Manual test steps: above ✅
 - Code review: [`docs/explain/part-5.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-5.md) ✅
 
 > Note: *our* Jenkins runs on **http://localhost:8090** (`jenkins/run-jenkins.sh`), chosen
@@ -257,7 +257,30 @@ job, click **Build with Parameters**, leave `TARGET_ENV=local`, click **Build**.
 **→ Paste the build's stage view / console output.**
 
 ## Part 6 — Automated rollback
-**Status: ⬜ not started**
+
+**Status: 🟡 built (from earlier work, URL default just fixed to match Part 3's new port) — needs your manual test**
+
+- Infographic: shown in chat ✅
+- Manual test steps: below ✅
+- Code review: [`docs/explain/part-6.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-6.md) ✅
+
+### Code on GitHub
+- [`scripts/rollback-demo.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/scripts/rollback-demo.sh) — ships a broken release under live traffic, then rolls it back
+- [`jenkins/Jenkinsfile.rollback`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/jenkins/Jenkinsfile.rollback) — the one-click `shop-rollback` Jenkins job
+- [`jenkins/scripts/metric-gate.sh`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/jenkins/scripts/metric-gate.sh) — the 5xx-ratio check used in Part 5's Verify stage
+
+### How to test it yourself
+```bash
+cd ~/automated-e-commerce-deployment-platform
+bash scripts/rollback-demo.sh http://localhost:8888
+```
+
+### Acceptance criteria
+- [ ] Output shows the rollout getting stuck on the bad release (old pods still `Running`)
+- [ ] `kubectl rollout undo` succeeds and `web` becomes ready again
+- [ ] The final status-code breakdown shows only `[200]` — zero downtime during the whole thing
+
+**→ Paste the full output.**
 
 ## Part 7 — Terraform (AWS, tested on the local emulator first)
 **Status: ⬜ not started**
