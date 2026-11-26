@@ -265,3 +265,10 @@ After the LB_PORT fix, storefront loaded successfully on http://localhost:8888, 
 k3d Kubernetes cluster (confirmed by the "version dev" badge from APP_VERSION, visible only when
 served via the K8s Deployment's build arg). All 12 products visible, UI consistent with Parts 1-2.
 Added docs/explain/part-4.md ahead of testing monitoring.
+
+## Part 4 confirmed on Kareem's PC (2026-11-26)
+
+kube-prometheus-stack installed clean via monitoring/install.sh, Grafana password generated and
+printed. Confirmed in Grafana UI: "Shop - Golden Signals" and "Shop - Scaling" dashboards both
+present (alongside the stock kubernetes-mixin/node-exporter dashboards). Confirmed in Prometheus
+/targets: all scrape targets UP. Added docs/explain/part-5.md ahead of testing Jenkins.
