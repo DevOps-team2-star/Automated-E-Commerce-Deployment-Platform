@@ -13,6 +13,13 @@ No part is marked DONE until step 4 happens. Coded ≠ Done.
 
 Repo: https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform (branch `main` unless noted)
 
+### Every part gets exactly 3 things (in chat, each time a part is tackled)
+1. **An infographic/diagram** of that part — shown inline in chat, icons included.
+2. **Manual test steps** — commands/clicks for you to run yourself on your PC.
+3. **Code review** — a plain-language walkthrough of the real files, saved to `docs/explain/part-N.md` with live GitHub links, so you can revisit it later to memorize everything without re-asking.
+
+This file only tracks status + links; the diagrams live in the chat history and the file-by-file explanations live in `docs/explain/`.
+
 Legend: ⬜ not started · 🟡 built, waiting for your manual test · ✅ confirmed by you
 
 ---
@@ -20,6 +27,10 @@ Legend: ⬜ not started · 🟡 built, waiting for your manual test · ✅ confi
 ## Part 0 — Machine setup (WSL2, Docker, tools, Git repo)
 
 **Status: 🟡 built + auto-verified by me — needs your manual confirmation**
+
+- Infographic: shown in chat ✅
+- Manual test steps: below ✅
+- Code review: [`docs/explain/part-0.md`](https://github.com/DevOps-team2-star/Automated-E-Commerce-Deployment-Platform/blob/main/docs/explain/part-0.md) ✅
 
 ### What was built
 - `scripts/install-tools.sh` — installs docker, kubectl, k3d, helm, kustomize, terraform, ansible, aws-cli, hey, hadolint inside WSL2 Ubuntu
